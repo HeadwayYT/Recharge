@@ -1,14 +1,14 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Check,
   Coffee,
-  Home,
+  Home as HomeIcon,
   MessageCircle,
   Moon,
-  Route,
+  Route as RouteIcon,
   Sparkles,
   SunMedium,
   TimerReset,
@@ -58,7 +58,7 @@ const iconMap: Record<Experiment["icon"], React.ReactNode> = {
   moon: <Moon size={22} aria-hidden="true" />,
   spark: <Sparkles size={22} aria-hidden="true" />,
   heart: <Sparkles size={22} aria-hidden="true" />,
-  steps: <Route size={22} aria-hidden="true" />,
+  steps: <RouteIcon size={22} aria-hidden="true" />,
 };
 
 export default function Home() {
@@ -78,6 +78,18 @@ export default function Home() {
   }, [step]);
 
   const missingInformation = analysis ? getMissingInformation(analysis) : null;
+
+  useEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, left: 0 });
+      document.querySelectorAll(".screen").forEach((element) => {
+        element.scrollTo({ top: 0, left: 0 });
+      });
+    };
+
+    resetScroll();
+    window.setTimeout(resetScroll, 0);
+  }, [step, activeTab]);
 
   function begin() {
     setStep("intake");
@@ -585,8 +597,8 @@ function TodayShell({
             className={activeTab === tab ? "active" : ""}
             onClick={() => onTabChange(tab)}
           >
-            {tab === "today" && <Home size={17} aria-hidden="true" />}
-            {tab === "journey" && <Route size={17} aria-hidden="true" />}
+            {tab === "today" && <HomeIcon size={17} aria-hidden="true" />}
+            {tab === "journey" && <RouteIcon size={17} aria-hidden="true" />}
             {tab === "update" && <MessageCircle size={17} aria-hidden="true" />}
             <span>{tab === "update" ? "Update" : tab[0].toUpperCase() + tab.slice(1)}</span>
           </button>

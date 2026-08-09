@@ -413,12 +413,49 @@ export const scenarios: Scenario[] = [
 
 const fallbackScenario = scenarios[0];
 
+function scoreScenario(scenario: Scenario, normalizedInput: string): number {
+  const baseScore = scenario.matchTerms.filter((term) => normalizedInput.includes(term)).length;
+
+  if (
+    scenario.id === "parent-interruption" &&
+    ["baby", "child", "toddler", "parent", "kids", "family"].some((term) => normalizedInput.includes(term))
+  ) {
+    return baseScore + 3;
+  }
+
+  if (scenario.id === "shift-work" && normalizedInput.includes("shift")) {
+    return baseScore + 3;
+  }
+
+  if (
+    scenario.id === "falling-asleep" &&
+    ["wired", "mind racing", "switch off", "can't sleep", "fall asleep"].some((term) =>
+      normalizedInput.includes(term),
+    )
+  ) {
+    return baseScore + 3;
+  }
+
+  if (
+    scenario.id === "morning-fatigue" &&
+    ["coffee", "caffeine", "7 hours", "seven hours", "3 pm"].some((term) => normalizedInput.includes(term))
+  ) {
+    return baseScore + 2;
+  }
+
+  return baseScore;
+}
+
 export function analyzeProblem(input: string): ProblemAnalysis {
   const normalized = input.toLowerCase();
   const selected =
-    scenarios.find((scenario) =>
-      scenario.matchTerms.some((term) => normalized.includes(term)),
-    ) ?? fallbackScenario;
+    scenarios
+      .map((scenario) => ({
+        scenario,
+        score: scoreScenario(scenario, normalized),
+      }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score)[0]?.scenario ?? fallbackScenario;
 
   return selected.analysis;
 }

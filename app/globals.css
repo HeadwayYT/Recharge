@@ -110,8 +110,8 @@ button:disabled {
   position: relative;
   z-index: 1;
   width: min(100%, 440px);
-  min-height: 832px;
-  max-height: 930px;
+  height: min(832px, calc(100vh - 64px));
+  min-height: 560px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
