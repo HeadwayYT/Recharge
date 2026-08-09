@@ -253,76 +253,7 @@ export default function Home() {
           />
         )}
       </section>
-
-      <StagePanel
-        step={step}
-        progressPercent={progressPercent}
-        analysis={analysis}
-        decision={decision}
-      />
     </main>
-  );
-}
-
-function StagePanel({
-  step,
-  progressPercent,
-  analysis,
-  decision,
-}: {
-  step: FlowStep;
-  progressPercent: number;
-  analysis: ProblemAnalysis | null;
-  decision: ExperimentDecision | null;
-}) {
-  const headline = decision
-    ? "One experiment, then Recharge learns from the signal."
-    : "Turn a messy problem into the next useful action.";
-
-  return (
-    <aside className="desktop-panel" aria-label="Recharge product notes">
-      <div className="desktop-kicker">
-        <span className="eyebrow">Adaptive recovery engine</span>
-        <span>{stepLabels[step]}</span>
-      </div>
-      <h2>{headline}</h2>
-      <p>
-        Recharge is not a chat thread. It extracts a pattern, selects one approved
-        behavioural experiment, tracks what happens, and adapts the next step.
-      </p>
-
-      <div className="insight-grid">
-        <article className="insight-card large">
-          <span className="panel-label">Next best interaction</span>
-          <strong>{decision?.nextBestInteraction.replaceAll("_", " ") ?? "Pattern extraction"}</strong>
-          <div className="wave-chart" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        </article>
-        <article className="insight-card">
-          <SunMedium size={18} aria-hidden="true" />
-          <span>Primary focus</span>
-          <strong>{analysis?.primaryFocus ?? "Recovery signal"}</strong>
-        </article>
-        <article className="insight-card warm">
-          <Moon size={18} aria-hidden="true" />
-          <span>Testing now</span>
-          <strong>{decision?.experiment.title ?? "Waiting for context"}</strong>
-        </article>
-      </div>
-
-      <div className="system-strip">
-        <span>Progress</span>
-        <div className="system-bar">
-          <i style={{ width: `${progressPercent}%` }} />
-        </div>
-        <strong>{progressPercent}%</strong>
-      </div>
-    </aside>
   );
 }
 
@@ -365,7 +296,7 @@ function LandingScreen({
       <div className="demo-strip" aria-label="Demo scenarios">
         {demoPrompts.map((prompt, index) => (
           <button key={prompt} type="button" onClick={() => onDemo(prompt)}>
-            <span>Demo {index + 1}</span>
+            <span>Try {index + 1}</span>
             <strong>{demoLabels[index]}</strong>
           </button>
         ))}
@@ -487,43 +418,45 @@ function ResultScreen({
         ))}
       </div>
 
-      {analysis.missingInformation && (
-        <article className="assembly-module question-preview" style={{ "--delay": "480ms" } as CSSProperties}>
-          <span className="panel-label">One thing before we start</span>
-          <strong>{analysis.missingInformation.prompt}</strong>
-          <p>{analysis.missingInformation.reason}</p>
-        </article>
-      )}
+      <div className="assembly-side">
+        {analysis.missingInformation && (
+          <article className="assembly-module question-preview" style={{ "--delay": "480ms" } as CSSProperties}>
+            <span className="panel-label">One thing before we start</span>
+            <strong>{analysis.missingInformation.prompt}</strong>
+            <p>{analysis.missingInformation.reason}</p>
+          </article>
+        )}
 
-      <article className="assembly-module experiment-preview" style={{ "--delay": "580ms" } as CSSProperties}>
-        <span className="panel-label">Let&apos;s start here</span>
-        <div className="experiment-title-row">
-          <div className="experiment-icon small">{iconMap[previewDecision.experiment.icon]}</div>
-          <div>
-            <strong>{previewDecision.experiment.title}</strong>
-            <p>{needsInformation ? "Recharge will lock this in after one answer." : previewDecision.experiment.userAction}</p>
+        <article className="assembly-module experiment-preview" style={{ "--delay": "580ms" } as CSSProperties}>
+          <span className="panel-label">Let&apos;s start here</span>
+          <div className="experiment-title-row">
+            <div className="experiment-icon small">{iconMap[previewDecision.experiment.icon]}</div>
+            <div>
+              <strong>{previewDecision.experiment.title}</strong>
+              <p>{needsInformation ? "Recharge will lock this in after one answer." : previewDecision.experiment.userAction}</p>
+            </div>
           </div>
-        </div>
-      </article>
+        </article>
 
-      <article className="assembly-module today-preview" style={{ "--delay": "680ms" } as CSSProperties}>
-        <span className="panel-label">Today</span>
-        <div className="today-preview-row">
-          <strong>Day 1 ready</strong>
-          <span>{previewDecision.experiment.durationDays} days</span>
-        </div>
-        <div className="mini-progress" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-      </article>
+        <article className="assembly-module today-preview" style={{ "--delay": "680ms" } as CSSProperties}>
+          <span className="panel-label">Today</span>
+          <div className="today-preview-row">
+            <strong>Day 1 ready</strong>
+            <span>{previewDecision.experiment.durationDays} days</span>
+          </div>
+          <div className="mini-progress" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </article>
 
-      <button className="primary-action" type="button" onClick={onContinue}>
-        <span>{needsInformation ? "Answer one useful question" : "Show first experiment"}</span>
-        <ArrowRight size={18} aria-hidden="true" />
-      </button>
+        <button className="primary-action assembly-module" type="button" onClick={onContinue} style={{ "--delay": "760ms" } as CSSProperties}>
+          <span>{needsInformation ? "Answer one useful question" : "Show first experiment"}</span>
+          <ArrowRight size={18} aria-hidden="true" />
+        </button>
+      </div>
     </section>
   );
 }

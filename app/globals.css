@@ -30,12 +30,14 @@
 }
 
 html {
+  height: 100%;
   background: var(--background);
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100%;
   margin: 0;
+  overflow: hidden;
   background:
     linear-gradient(120deg, rgba(45, 212, 191, 0.16), transparent 26%),
     linear-gradient(245deg, rgba(245, 169, 155, 0.12), transparent 30%),
@@ -61,12 +63,12 @@ button:disabled {
 .app-shell {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(340px, 440px) minmax(420px, 560px);
-  align-items: center;
-  justify-content: center;
-  gap: 76px;
-  min-height: 100vh;
-  padding: 48px 32px;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  justify-content: stretch;
+  min-height: 100svh;
+  height: 100svh;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -109,20 +111,18 @@ button:disabled {
 .phone-frame {
   position: relative;
   z-index: 1;
-  width: min(100%, 440px);
-  height: min(832px, calc(100vh - 64px));
-  min-height: 560px;
+  width: 100%;
+  height: 100svh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 34px;
+  border: 0;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 24%),
     linear-gradient(145deg, rgba(30, 41, 59, 0.72), rgba(8, 12, 22, 0.96));
-  box-shadow:
-    0 34px 110px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .phone-frame::before {
@@ -147,7 +147,10 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 22px 12px;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 24px 32px 14px;
+  animation: barEnter 520ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .brand-lockup {
@@ -193,7 +196,8 @@ button:disabled {
 
 .progress-track {
   height: 4px;
-  margin: 0 22px;
+  width: min(calc(100% - 64px), 1180px);
+  margin: 0 auto;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -212,19 +216,52 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: min(100%, 920px);
   min-height: 0;
-  padding: 26px 22px 28px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vh, 58px) 32px 56px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(94, 234, 212, 0.34) transparent;
+  animation: screenEnter 440ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .assembled-screen {
   gap: 16px;
 }
 
+.result-assembly {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-content: start;
+  align-items: start;
+  width: min(100%, 1180px);
+}
+
+.result-assembly > .assembly-summary {
+  grid-column: 1 / -1;
+}
+
+.result-assembly > .focus-module {
+  grid-column: 1 / span 5;
+  grid-row: span 3;
+}
+
+.result-assembly > .factor-grid {
+  grid-column: 6 / span 4;
+}
+
+.result-assembly > .assembly-side {
+  grid-column: 10 / -1;
+}
+
 .hero-screen {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+  align-content: center;
+  align-items: center;
+  gap: 24px;
+  width: min(100%, 1180px);
 }
 
 h1,
@@ -235,7 +272,7 @@ p {
 
 h1 {
   max-width: 12ch;
-  font-size: 46px;
+  font-size: clamp(44px, 6vw, 78px);
   font-weight: 500;
   line-height: 1.04;
 }
@@ -272,6 +309,10 @@ h2 {
   line-height: 1.6;
 }
 
+.hero-copy h1 {
+  max-width: 11ch;
+}
+
 .signal-card,
 .info-panel,
 .soft-panel,
@@ -303,6 +344,7 @@ h2 {
   background:
     linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(245, 169, 155, 0.08) 55%, rgba(184, 183, 255, 0.09)),
     rgba(13, 19, 32, 0.92);
+  animation: moduleAssemble 700ms cubic-bezier(0.2, 0.78, 0.22, 1) 120ms both;
 }
 
 .signal-card strong {
@@ -323,6 +365,7 @@ h2 {
     radial-gradient(circle, rgba(255, 255, 255, 0.96) 0 5px, transparent 6px),
     conic-gradient(from 230deg, var(--primary) 0 44%, rgba(255, 255, 255, 0.13) 44% 60%, var(--coral) 60% 78%, var(--lavender) 78% 90%, rgba(255, 255, 255, 0.08) 90%);
   box-shadow: 0 18px 46px rgba(45, 212, 191, 0.12);
+  animation: orbitalFloat 4.6s ease-in-out infinite alternate;
 }
 
 .orbital-chart::after {
@@ -384,6 +427,14 @@ h2 {
   box-shadow: 0 18px 44px rgba(45, 212, 191, 0.32);
 }
 
+.primary-action:hover svg {
+  transform: translateX(3px);
+}
+
+.primary-action svg {
+  transition: transform 180ms ease;
+}
+
 .demo-strip,
 .chip-row,
 .focus-row,
@@ -413,6 +464,7 @@ h2 {
 .demo-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-column: 1 / -1;
 }
 
 .demo-strip button {
@@ -495,6 +547,7 @@ textarea:focus {
 
 .analysis-screen {
   justify-content: flex-start;
+  width: min(100%, 860px);
 }
 
 .assembly-summary {
@@ -557,7 +610,9 @@ textarea:focus {
     radial-gradient(circle, rgba(255, 255, 255, 0.94) 0 5px, transparent 6px),
     conic-gradient(from 0deg, rgba(94, 234, 212, 0.88), rgba(245, 169, 155, 0.26), rgba(184, 183, 255, 0.32), rgba(94, 234, 212, 0.88));
   box-shadow: 0 18px 48px rgba(45, 212, 191, 0.14);
-  animation: radarSettle 900ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
+  animation:
+    radarSettle 900ms cubic-bezier(0.2, 0.78, 0.22, 1) both,
+    radarBreathe 2.8s ease-in-out 900ms infinite alternate;
 }
 
 .assembly-radar::before,
@@ -585,6 +640,7 @@ textarea:focus {
   height: 10px;
   border-radius: 999px;
   background: var(--accent);
+  animation: nodePulse 1.8s ease-in-out infinite alternate;
 }
 
 .assembly-radar span:nth-child(1) {
@@ -596,12 +652,14 @@ textarea:focus {
   right: 25px;
   bottom: 40px;
   background: var(--coral);
+  animation-delay: 160ms;
 }
 
 .assembly-radar span:nth-child(3) {
   left: 28px;
   bottom: 34px;
   background: var(--lavender);
+  animation-delay: 320ms;
 }
 
 .analysis-card {
@@ -644,6 +702,7 @@ textarea:focus {
   animation: moduleAssemble 640ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
   animation-delay: var(--delay, 0ms);
   transform-origin: center top;
+  will-change: transform, opacity, filter;
 }
 
 .focus-module {
@@ -680,6 +739,15 @@ textarea:focus {
 .factor-grid {
   display: grid;
   gap: 12px;
+}
+
+.result-assembly .factor-grid {
+  grid-template-columns: 1fr;
+}
+
+.assembly-side {
+  display: grid;
+  gap: 14px;
 }
 
 .factor-card {
@@ -1009,6 +1077,7 @@ textarea:focus {
 }
 
 .app-view {
+  width: min(100%, 940px);
   padding-bottom: 98px;
 }
 
@@ -1067,17 +1136,20 @@ textarea:focus {
 
 .bottom-nav {
   position: absolute;
-  right: 18px;
+  right: auto;
   bottom: 18px;
-  left: 18px;
+  left: 50%;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  width: min(calc(100% - 36px), 760px);
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   background: rgba(8, 12, 22, 0.86);
   backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+  animation: navEnter 560ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .bottom-nav button {
@@ -1245,6 +1317,54 @@ textarea:focus {
   }
 }
 
+@keyframes screenEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes barEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes navEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes orbitalFloat {
+  from {
+    transform: translateY(0) rotate(-3deg);
+  }
+
+  to {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
 @keyframes compressIn {
   from {
     opacity: 0;
@@ -1299,6 +1419,28 @@ textarea:focus {
   }
 }
 
+@keyframes radarBreathe {
+  from {
+    box-shadow: 0 18px 48px rgba(45, 212, 191, 0.12);
+  }
+
+  to {
+    box-shadow: 0 24px 62px rgba(45, 212, 191, 0.2);
+  }
+}
+
+@keyframes nodePulse {
+  from {
+    transform: scale(0.9);
+    opacity: 0.62;
+  }
+
+  to {
+    transform: scale(1.22);
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1328,18 +1470,30 @@ textarea:focus {
   .desktop-panel {
     display: none;
   }
+
+  .hero-screen,
+  .result-assembly {
+    display: flex;
+    width: min(100%, 920px);
+  }
+
+  .result-assembly > .assembly-summary,
+  .result-assembly > .focus-module,
+  .result-assembly > .factor-grid,
+  .result-assembly > .assembly-side {
+    grid-column: auto;
+  }
 }
 
 @media (max-height: 860px) and (min-width: 981px) {
   .app-shell {
-    align-items: start;
-    padding-top: 24px;
-    padding-bottom: 24px;
-    overflow-y: auto;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
   }
 
   .phone-frame {
-    height: calc(100svh - 48px);
+    height: 100svh;
     min-height: 0;
   }
 
