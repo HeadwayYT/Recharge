@@ -2772,3 +2772,616 @@ textarea:focus {
     width: 100%;
   }
 }
+
+/* Recharge signature canvas */
+.adaptive-canvas-frame {
+  isolation: isolate;
+  background:
+    linear-gradient(118deg, rgba(243, 197, 139, 0.035), transparent 34%),
+    linear-gradient(180deg, #0d0e13 0%, #151317 54%, #0d1015 100%);
+}
+
+.adaptive-canvas-frame::before {
+  z-index: 0;
+  opacity: 0.42;
+}
+
+.recovery-field {
+  position: absolute;
+  z-index: 0;
+  inset: -8% -4% -10% 20%;
+  pointer-events: none;
+  transform-origin: 68% 48%;
+  will-change: transform, filter, opacity;
+}
+
+.recovery-field::after {
+  content: "";
+  position: absolute;
+  inset: 8% 0 0 16%;
+  background: linear-gradient(115deg, transparent 12%, rgba(159, 216, 196, 0.035) 48%, transparent 76%);
+  mask-image: linear-gradient(to bottom, transparent, black 24%, black 72%, transparent);
+}
+
+.recovery-field-light {
+  position: absolute;
+  width: min(58vw, 860px);
+  aspect-ratio: 1.3;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(243, 197, 139, 0.15), rgba(159, 216, 196, 0.045) 38%, transparent 70%);
+  filter: blur(26px);
+  transform: translate(-50%, -50%);
+}
+
+.recovery-field svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.field-horizon {
+  fill: none;
+  stroke: rgba(243, 197, 139, 0.72);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.field-horizon-far {
+  stroke: rgba(184, 183, 217, 0.58);
+}
+
+.field-horizon-near {
+  stroke: rgba(159, 216, 196, 0.54);
+}
+
+.field-point {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.recovery-field[data-state="unknown"] .field-point {
+  animation: fieldDrift 7s ease-in-out infinite alternate;
+}
+
+.recovery-field[data-state="active"] .field-horizon,
+.recovery-field[data-state="recovering"] .field-horizon {
+  animation: fieldBreathe 9s ease-in-out infinite alternate;
+}
+
+.recovery-field[data-state="learning"] .field-horizon {
+  animation: fieldBreathe 6.8s ease-in-out infinite alternate;
+}
+
+.recovery-field[data-state="anticipating"] .field-point {
+  animation: timelinePulse 4.8s ease-in-out infinite;
+}
+
+.top-bar,
+.flow-stage {
+  z-index: 2;
+}
+
+.top-bar {
+  width: min(100%, 1440px);
+  padding: 22px clamp(28px, 4vw, 64px) 6px;
+}
+
+.brand-lockup {
+  opacity: 0.76;
+  transition: opacity 180ms ease;
+}
+
+.brand-lockup:hover,
+.brand-lockup:focus-visible {
+  opacity: 1;
+}
+
+.brand-mark {
+  border-radius: 8px;
+  background: linear-gradient(145deg, #f3c58b, #9fd8c4 68%, #b8b7d9);
+  box-shadow: 0 0 28px rgba(243, 197, 139, 0.18);
+}
+
+.screen,
+.living-app-view {
+  width: min(100%, 1440px);
+  padding-right: clamp(28px, 4vw, 64px);
+  padding-left: clamp(28px, 4vw, 64px);
+}
+
+.opening-screen {
+  display: grid;
+  grid-template-columns: minmax(480px, 0.8fr) minmax(320px, 1.2fr);
+  grid-template-areas:
+    "opening-copy field-space"
+    "opening-composer field-space";
+  align-content: center;
+  align-items: end;
+  column-gap: 48px;
+  row-gap: 34px;
+  width: min(100%, 1440px);
+}
+
+.opening-copy {
+  grid-area: opening-copy;
+}
+
+.opening-copy h1 {
+  max-width: 11ch;
+  font-size: 5.5rem;
+}
+
+.opening-composer {
+  grid-area: opening-composer;
+  max-width: 760px;
+}
+
+.personal-canvas {
+  width: min(100%, 1440px);
+  grid-template-columns: minmax(0, 0.76fr) minmax(500px, 1.24fr);
+  column-gap: clamp(48px, 6vw, 110px);
+}
+
+.focus-statement h1 {
+  font-size: 4.5rem;
+}
+
+.experiment-living-module,
+.experiment-living-module.secondary,
+.adapted-action-module {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.experiment-living-module::after,
+.adapted-action-module::after {
+  display: none;
+}
+
+.experiment-living-module {
+  min-height: min(62vh, 590px);
+  padding: clamp(26px, 4vw, 54px) 0;
+}
+
+.experiment-living-module.secondary {
+  min-height: 0;
+  padding: 8px 0;
+  opacity: 0.46;
+}
+
+.experiment-living-module .experiment-icon,
+.resolved-experiment-origin .experiment-icon,
+.journey-current .experiment-icon {
+  border: 0;
+  background: transparent;
+  box-shadow: 0 0 42px rgba(243, 197, 139, 0.12);
+}
+
+.experiment-module-copy h2 {
+  font-size: 5.75rem;
+}
+
+.today-canvas {
+  grid-template-columns: minmax(320px, 0.7fr) minmax(520px, 1.3fr);
+  column-gap: clamp(54px, 7vw, 120px);
+}
+
+.today-greeting h1 {
+  font-size: 5.25rem;
+}
+
+.today-canvas.context-adapting,
+.today-canvas.context-adapted {
+  grid-template-columns: minmax(260px, 0.46fr) minmax(620px, 1.54fr);
+  grid-template-areas:
+    "greeting adapted"
+    "experiment adapted"
+    "why adapted";
+  align-content: center;
+  column-gap: clamp(70px, 8vw, 140px);
+}
+
+.today-canvas.context-adapting .today-greeting,
+.today-canvas.context-adapted .today-greeting {
+  align-self: start;
+  opacity: 0.72;
+}
+
+.today-canvas.context-adapting .today-greeting h1,
+.today-canvas.context-adapted .today-greeting h1 {
+  display: none;
+}
+
+.today-canvas.context-nightShift {
+  grid-template-columns: minmax(220px, 0.38fr) minmax(720px, 1.62fr);
+  grid-template-areas:
+    "greeting adapted"
+    "experiment adapted";
+}
+
+.today-canvas.context-adapting > .experiment-living-module,
+.today-canvas.context-adapted > .experiment-living-module,
+.today-canvas.context-nightShift > .experiment-living-module {
+  max-height: none;
+  min-height: 0;
+  padding: 0;
+  opacity: 0.38;
+}
+
+.today-canvas.context-adapting > .experiment-living-module .experiment-module-copy h2,
+.today-canvas.context-adapted > .experiment-living-module .experiment-module-copy h2,
+.today-canvas.context-nightShift > .experiment-living-module .experiment-module-copy h2 {
+  font-size: 2.25rem;
+}
+
+.adapted-action-module {
+  min-height: min(62vh, 590px);
+  padding: clamp(28px, 4vw, 56px) 0;
+}
+
+.adapted-action-module blockquote,
+.night-shift-copy blockquote {
+  max-width: 42ch;
+  margin: 0;
+  color: rgba(255, 250, 244, 0.52);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.adapted-action-module h2 {
+  font-size: 5.75rem;
+}
+
+.today-canvas.learning-ready {
+  display: block;
+  padding-top: 0;
+}
+
+.today-canvas.learning-ready .today-greeting {
+  position: absolute;
+  z-index: 2;
+  top: 5%;
+  left: clamp(28px, 4vw, 64px);
+  max-width: 220px;
+  opacity: 0.42;
+}
+
+.learning-moment {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.36fr) minmax(620px, 1.64fr);
+  align-items: center;
+  gap: clamp(60px, 8vw, 150px);
+  min-height: calc(100% - 82px);
+  padding: 40px 0 96px;
+}
+
+.resolved-experiment-origin {
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  opacity: 0.52;
+}
+
+.resolved-experiment-origin > div:nth-child(2) {
+  display: grid;
+  gap: 5px;
+}
+
+.resolved-experiment-origin strong {
+  color: #fffaf3;
+  font-size: 2.15rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.resolved-experiment-origin .experiment-dots {
+  max-width: 220px;
+}
+
+.knowledge-statement {
+  display: grid;
+  align-content: center;
+  gap: 18px;
+}
+
+.knowledge-statement h2 {
+  max-width: 12ch;
+  font-size: 5.75rem;
+}
+
+.night-shift-module {
+  min-height: min(62vh, 590px);
+}
+
+.night-shift-copy p {
+  font-size: 1.75rem;
+}
+
+.shift-line::before {
+  background: linear-gradient(90deg, rgba(243, 197, 139, 0.78), rgba(184, 183, 217, 0.46), rgba(159, 216, 196, 0.68));
+  box-shadow: 0 0 24px rgba(243, 197, 139, 0.12);
+}
+
+.shift-node svg {
+  background: rgba(13, 14, 19, 0.86);
+}
+
+.journey-canvas {
+  grid-template-columns: minmax(290px, 0.52fr) minmax(0, 1.48fr);
+  column-gap: clamp(70px, 9vw, 160px);
+}
+
+.journey-heading h1 {
+  font-size: 4.75rem;
+}
+
+.journey-current {
+  min-height: 0;
+  opacity: 0.48;
+}
+
+.journey-current h2 {
+  font-size: 2.5rem;
+}
+
+.recovery-map::before {
+  display: none;
+}
+
+.recovery-signal strong {
+  font-size: 3.75rem;
+}
+
+.update-canvas {
+  grid-template-columns: minmax(560px, 1.2fr) minmax(260px, 0.48fr);
+  column-gap: clamp(70px, 9vw, 150px);
+}
+
+.update-canvas h1 {
+  font-size: 5.5rem;
+}
+
+.update-composer textarea {
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.bottom-nav {
+  right: clamp(28px, 4vw, 64px);
+  bottom: 22px;
+  left: auto;
+  display: flex;
+  grid-template-columns: none;
+  gap: 4px;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  transform: none;
+  opacity: 0.46;
+  transition: opacity 220ms ease;
+}
+
+.bottom-nav:hover,
+.bottom-nav:focus-within {
+  opacity: 1;
+}
+
+.bottom-nav button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 10px;
+  background: transparent;
+  color: rgba(255, 250, 244, 0.52);
+  font-size: 0.8125rem;
+}
+
+.bottom-nav button:hover,
+.bottom-nav button.active {
+  border: 0;
+  background: transparent;
+  color: #fffaf3;
+  transform: none;
+}
+
+.bottom-nav button.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  width: 16px;
+  height: 1px;
+  background: #f3c58b;
+}
+
+@keyframes fieldDrift {
+  from { transform: translate3d(-8px, 4px, 0); }
+  to { transform: translate3d(10px, -8px, 0); }
+}
+
+@keyframes fieldBreathe {
+  from { stroke-width: 1px; }
+  to { stroke-width: 1.55px; }
+}
+
+@keyframes timelinePulse {
+  0%, 100% { opacity: 0.46; }
+  50% { opacity: 0.92; }
+}
+
+@media (max-width: 1100px) {
+  .opening-copy h1,
+  .experiment-module-copy h2,
+  .adapted-action-module h2,
+  .knowledge-statement h2,
+  .update-canvas h1 {
+    font-size: 4.5rem;
+  }
+
+  .today-greeting h1,
+  .journey-heading h1 {
+    font-size: 4rem;
+  }
+}
+
+@media (max-width: 980px) {
+  .recovery-field {
+    inset: -2% -28% 8% -18%;
+    opacity: 0.38;
+  }
+
+  .opening-screen {
+    display: flex;
+    width: min(100%, 760px);
+  }
+
+  .opening-copy h1,
+  .focus-statement h1,
+  .experiment-module-copy h2,
+  .adapted-action-module h2,
+  .knowledge-statement h2,
+  .journey-heading h1,
+  .update-canvas h1 {
+    font-size: 3.25rem;
+  }
+
+  .today-canvas.learning-ready {
+    display: flex;
+  }
+
+  .today-canvas.learning-ready .today-greeting {
+    position: static;
+    max-width: none;
+  }
+
+  .learning-moment {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    align-items: stretch;
+    gap: 34px;
+    min-height: 0;
+    padding: 26px 0 104px;
+  }
+
+  .today-canvas.context-adapting,
+  .today-canvas.context-adapted,
+  .today-canvas.context-nightShift {
+    gap: 26px;
+    padding-top: 22px;
+    padding-bottom: 124px;
+  }
+
+  .today-canvas.context-adapting > .experiment-living-module,
+  .today-canvas.context-adapted > .experiment-living-module,
+  .today-canvas.context-nightShift > .experiment-living-module {
+    flex: 0 0 auto;
+    min-height: 132px;
+    max-height: none;
+    padding: 8px 0 18px;
+  }
+
+  .adapted-action-module,
+  .night-shift-module {
+    flex: 0 0 auto;
+    align-content: start;
+    min-height: 0;
+    padding: 20px 0 30px;
+  }
+
+  .night-shift-copy p {
+    font-size: 1.35rem;
+  }
+
+  .shift-line {
+    gap: 26px;
+    min-height: 480px;
+  }
+
+  .resolved-experiment-origin {
+    flex: 0 0 auto;
+    min-height: 170px;
+  }
+
+  .bottom-nav {
+    right: 18px;
+    bottom: 14px;
+    left: 18px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: auto;
+    padding: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    background: rgba(8, 12, 18, 0.84);
+    backdrop-filter: blur(18px);
+    opacity: 1;
+  }
+
+  .bottom-nav button {
+    border-radius: 14px;
+  }
+
+  .bottom-nav button.active {
+    background: rgba(243, 197, 139, 0.1);
+  }
+
+  .bottom-nav button.active::after {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .top-bar {
+    padding: 16px 18px 4px;
+  }
+
+  .screen,
+  .living-app-view {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .opening-copy h1,
+  .focus-statement h1,
+  .experiment-module-copy h2,
+  .adapted-action-module h2,
+  .knowledge-statement h2,
+  .journey-heading h1,
+  .update-canvas h1 {
+    font-size: 2.625rem;
+  }
+
+  .opening-composer textarea,
+  .update-composer textarea {
+    border-radius: 20px;
+  }
+
+  .adapted-action-module,
+  .experiment-living-module:not(.secondary) {
+    min-height: 330px;
+  }
+
+  .today-canvas.context-adapting > .experiment-living-module,
+  .today-canvas.context-adapted > .experiment-living-module,
+  .today-canvas.context-nightShift > .experiment-living-module,
+  .night-shift-module {
+    min-height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recovery-field .field-point,
+  .recovery-field .field-horizon {
+    animation: none !important;
+  }
+}

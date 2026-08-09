@@ -54,3 +54,19 @@ test("keeps AI-ready product architecture out of the UI layer", async () => {
   assert.match(recharge, /REQUEST_INFORMATION/);
   assert.match(recharge, /START_EXPERIMENT/);
 });
+
+test("keeps the signature recovery canvas state-driven and shared", async () => {
+  const [page, recoveryField] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/recharge/RecoveryField.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /<RecoveryField state=\{recoveryFieldState\}/);
+  assert.match(page, /layoutId=\{`experiment:\$\{experiment\.id\}`\}/);
+  assert.match(page, /layoutId="context-adaptation"/);
+  assert.doesNotMatch(page, /className=\{`context-living-module/);
+  assert.match(recoveryField, /"unknown"/);
+  assert.match(recoveryField, /"learning"/);
+  assert.match(recoveryField, /"disrupted"/);
+  assert.match(recoveryField, /"anticipating"/);
+});

@@ -41,7 +41,6 @@ import {
 } from "../lib/recharge";
 import {
   composerVariants,
-  contextExtractionVariants,
   experimentFormationVariants,
   extractedComposerVariants,
   extractedSignalVariants,
@@ -55,6 +54,7 @@ import {
   signalGroupVariants,
   signalVariants,
 } from "./recharge-choreography";
+import { RecoveryField, type RecoveryFieldState } from "../components/recharge/RecoveryField";
 
 type FlowStep = "landing" | "recommendation" | "today";
 type AppTab = "today" | "journey" | "update";
@@ -90,6 +90,21 @@ const emptyTodayContext: TodayContext = {
   message: "",
   action: "",
 };
+
+function getRecoveryFieldState(
+  step: FlowStep,
+  activeTab: AppTab,
+  todayContext: TodayContext,
+  personalRecoveryModel: PersonalRecoveryModel,
+): RecoveryFieldState {
+  if (step === "landing") return "unknown";
+  if (step === "recommendation") return "focusing";
+  if (todayContext.kind === "nightShift" && todayContext.status !== "none") return "anticipating";
+  if (todayContext.kind === "brokenNight" && todayContext.status === "adapting") return "disrupted";
+  if (todayContext.kind === "brokenNight" && todayContext.status === "adapted") return "recovering";
+  if (personalRecoveryModel.status === "pattern-emerging" || activeTab === "journey") return "learning";
+  return "active";
+}
 
 const iconMap: Record<Experiment["icon"], React.ReactNode> = {
   sun: <Sun size={22} weight="duotone" aria-hidden="true" />,
@@ -205,6 +220,7 @@ export default function Home() {
   );
   const adherenceKey = activeExperiment?.adherence.map((done) => (done ? "1" : "0")).join("") ?? "";
   const answerKey = Object.values(answers).join("|");
+  const recoveryFieldState = getRecoveryFieldState(step, activeTab, todayContext, personalRecoveryModel);
 
   useEffect(() => {
     const resetScroll = () => {
@@ -289,20 +305,17 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
-      <div className="mesh-layer" aria-hidden="true" />
+    <main className="app-shell" data-recovery-state={recoveryFieldState}>
+      <LayoutGroup id="recharge-flow">
+        <section className="phone-frame adaptive-canvas-frame" aria-label="Recharge adaptive recovery canvas">
+          <RecoveryField state={recoveryFieldState} />
+          <header className="top-bar">
+            <button className="brand-lockup" type="button" onClick={restart} aria-label="Restart Recharge">
+              <span className="brand-mark" />
+              <span>Recharge</span>
+            </button>
+          </header>
 
-      <section className="phone-frame" aria-label="Recharge application preview">
-        <header className="top-bar">
-          <button className="brand-lockup" type="button" onClick={restart} aria-label="Restart Recharge">
-            <span className="brand-mark" />
-            <span>Recharge</span>
-          </button>
-        </header>
-
-        <LayoutGroup id="recharge-flow">
           <div className="flow-stage">
             <AnimatePresence initial={false} mode="sync">
               {step === "landing" && (
@@ -344,8 +357,8 @@ export default function Home() {
               )}
             </AnimatePresence>
           </div>
-        </LayoutGroup>
-      </section>
+        </section>
+      </LayoutGroup>
     </main>
   );
 }
@@ -552,9 +565,24 @@ function ExperimentModule({
       className={`experiment-living-module ${mode}`}
       layout
       layoutId={`experiment:${experiment.id}`}
-      transition={mode === "secondary" ? spatialBehaviors.demote : spatialBehaviors.promote}
+      transition={
+        mode === "secondary"
+          ? spatialBehaviors.demote
+          : formation === "seed"
+            ? { ...spatialBehaviors.promote, delay: 0.18 }
+            : spatialBehaviors.promote
+      }
       variants={formation === "seed" ? experimentFormationVariants : moduleVariants}
       custom={0.28}
+      initial="initial"
+      animate={{
+        opacity: mode === "secondary" ? 0.42 : 1,
+        y: 0,
+        scale: 1,
+        filter: "blur(0px)",
+        borderRadius: 0,
+      }}
+      exit="exit"
     >
       <div className="experiment-module-top">
         <div className="experiment-icon">{iconMap[experiment.icon]}</div>
@@ -734,26 +762,6 @@ function TodayScreen({
         <h1>{greetingTitle}</h1>
       </motion.div>
 
-      <AnimatePresence mode="popLayout">
-        {hasAdaptedContext && (
-          <motion.article
-            key="adapted-context"
-            className={`context-living-module ${todayContext.status}`}
-            layout
-            layoutId="update-composer"
-            variants={contextExtractionVariants}
-            custom={0.08}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <span>{todayContext.text}</span>
-            <h2>{todayContext.label}</h2>
-            <p>{todayContext.status === "adapting" ? "Today is reprioritizing around that." : todayContext.message}</p>
-          </motion.article>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {hasAdaptedContext && todayContext.kind !== "nightShift" && (
           <AdaptedActionModule key="adapted-action" todayContext={todayContext} />
@@ -761,19 +769,28 @@ function TodayScreen({
         {hasAdaptedContext && todayContext.kind === "nightShift" && (
           <NightShiftModule key="night-shift" todayContext={todayContext} />
         )}
-        {learningReady && personalRecoveryModel.primaryInsight && (
-          <LearningMoment key="learning-moment" personalRecoveryModel={personalRecoveryModel} />
-        )}
       </AnimatePresence>
 
-      <ExperimentModule
-        mode={hasAdaptedContext || learningReady ? "secondary" : completedToday ? "completedToday" : "active"}
-        experiment={experiment}
-        activeExperiment={activeExperiment}
-        primaryFocus={analysis.primaryFocus}
-        actionCopy={completedToday ? "Done for today" : "Done for today"}
-        onPrimaryAction={hasAdaptedContext || activeExperiment.status === "completed" ? undefined : onDone}
-      />
+      <AnimatePresence mode="popLayout">
+        {learningReady && personalRecoveryModel.primaryInsight ? (
+          <LearningMoment
+            key="resolved-experiment"
+            experiment={experiment}
+            activeExperiment={activeExperiment}
+            personalRecoveryModel={personalRecoveryModel}
+          />
+        ) : (
+          <ExperimentModule
+            key="living-experiment"
+            mode={hasAdaptedContext ? "secondary" : completedToday ? "completedToday" : "active"}
+            experiment={experiment}
+            activeExperiment={activeExperiment}
+            primaryFocus={analysis.primaryFocus}
+            actionCopy="Done for today"
+            onPrimaryAction={hasAdaptedContext || activeExperiment.status === "completed" ? undefined : onDone}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {completedToday && !hasAdaptedContext && !learningReady && (
@@ -810,7 +827,7 @@ function AdaptedActionModule({ todayContext }: { todayContext: TodayContext }) {
     <motion.article
       className={`adapted-action-module ${todayContext.status}`}
       layout
-      layoutId="adapted-action"
+      layoutId="context-adaptation"
       variants={experimentFormationVariants}
       initial="initial"
       animate="animate"
@@ -824,13 +841,22 @@ function AdaptedActionModule({ todayContext }: { todayContext: TodayContext }) {
         )}
         {todayContext.status === "adapting" ? "Making room" : "Today"}
       </span>
+      <blockquote>{todayContext.text}</blockquote>
       <h2>{todayContext.status === "adapting" ? "Lighter Day" : todayContext.title}</h2>
       <p>{todayContext.status === "adapting" ? "Keeping the longer experiment, lowering today's demand." : todayContext.action}</p>
     </motion.article>
   );
 }
 
-function LearningMoment({ personalRecoveryModel }: { personalRecoveryModel: PersonalRecoveryModel }) {
+function LearningMoment({
+  experiment,
+  activeExperiment,
+  personalRecoveryModel,
+}: {
+  experiment: Experiment;
+  activeExperiment: ActiveExperiment;
+  personalRecoveryModel: PersonalRecoveryModel;
+}) {
   const insight = personalRecoveryModel.primaryInsight;
   if (!insight) return null;
 
@@ -838,18 +864,29 @@ function LearningMoment({ personalRecoveryModel }: { personalRecoveryModel: Pers
     <motion.article
       className="learning-moment"
       layout
-      layoutId="learning:morning-reset"
+      layoutId={`experiment:${experiment.id}`}
+      transition={spatialBehaviors.surfaceInsight}
       variants={experimentFormationVariants}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <span>
-        <TrendUp size={18} weight="duotone" aria-hidden="true" />
-        {insight.title}
-      </span>
-      <h2>{insight.body}</h2>
-      <p>{insight.qualifier}</p>
+      <div className="resolved-experiment-origin">
+        <div className="experiment-icon">{iconMap[experiment.icon]}</div>
+        <div>
+          <span>Morning Reset resolved</span>
+          <strong>{experiment.title}</strong>
+        </div>
+        <ExperimentDots activeExperiment={activeExperiment} />
+      </div>
+      <motion.div className="knowledge-statement" layoutId="knowledge:morning-reset">
+        <span>
+          <TrendUp size={18} weight="duotone" aria-hidden="true" />
+          {insight.title}
+        </span>
+        <h2>{insight.body}</h2>
+        <p>{insight.qualifier}</p>
+      </motion.div>
     </motion.article>
   );
 }
@@ -862,7 +899,7 @@ function NightShiftModule({ todayContext }: { todayContext: TodayContext }) {
     <motion.article
       className={`night-shift-module ${todayContext.status}`}
       layout
-      layoutId="adapted-action"
+      layoutId="context-adaptation"
       variants={experimentFormationVariants}
       initial="initial"
       animate="animate"
@@ -873,6 +910,7 @@ function NightShiftModule({ todayContext }: { todayContext: TodayContext }) {
           <MoonStars size={18} weight="duotone" aria-hidden="true" />
           {todayContext.title}
         </span>
+        <blockquote>{todayContext.text}</blockquote>
         <p>{todayContext.message}</p>
       </div>
       <div className="shift-line" aria-label="Night shift recovery plan">
@@ -1126,7 +1164,7 @@ function UpdateScreen({
         <h1>Tell Recharge.</h1>
         <p className="lead">We&apos;ll adjust today around what&apos;s happening.</p>
       </motion.div>
-      <motion.form className="update-composer" layout layoutId="update-composer" onSubmit={onSubmitUpdate}>
+      <motion.form className="update-composer" layout layoutId="context-adaptation" onSubmit={onSubmitUpdate}>
         <textarea
           value={updateText}
           onChange={(event) => onUpdateText(event.target.value)}

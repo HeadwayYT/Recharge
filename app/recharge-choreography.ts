@@ -199,19 +199,15 @@ export const spatialBehaviors = {
 };
 
 export const navVariants = {
-  initial: { opacity: 0, y: 18, x: "-50%", scale: 0.98 },
+  initial: { opacity: 0, y: 10 },
   animate: {
     opacity: 1,
     y: 0,
-    x: "-50%",
-    scale: 1,
     transition: { ...layoutTransition, delay: 0.12 },
   },
   exit: {
     opacity: 0,
-    y: 12,
-    x: "-50%",
-    scale: 0.98,
+    y: 8,
     transition: { duration: 0.18, ease: "easeInOut" },
   },
 };
