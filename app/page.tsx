@@ -2,6 +2,16 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import {
+  ArrowRight,
+  Check,
+  Home,
+  MessageCircle,
+  Moon,
+  Route,
+  Sparkles,
+  SunMedium,
+} from "lucide-react";
+import {
   analyzeProblem,
   buildPlan,
   buildProfile,
@@ -25,6 +35,8 @@ const demoPrompts = [
   "My shifts disrupt my sleep and my schedule changes every few days.",
   "My young child wakes me up during the night and I feel depleted in the morning.",
 ];
+
+const demoLabels = ["Day worker", "Shift worker", "Parent"];
 
 const stepLabels: Record<FlowStep, string> = {
   landing: "Start",
@@ -101,6 +113,7 @@ export default function Home() {
     <main className="app-shell">
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
+      <div className="mesh-layer" aria-hidden="true" />
 
       <section className="phone-frame" aria-label="Recharge application preview">
         <header className="top-bar">
@@ -108,7 +121,10 @@ export default function Home() {
             <span className="brand-mark" />
             <span>Recharge</span>
           </button>
-          <span className="status-pill">Private beta</span>
+          <span className="status-pill">
+            <Sparkles size={13} aria-hidden="true" />
+            Private beta
+          </span>
         </header>
 
         <div className="progress-track" aria-label="Onboarding progress">
@@ -155,20 +171,62 @@ export default function Home() {
         )}
       </section>
 
-      <aside className="desktop-panel" aria-label="Recharge product notes">
-        <span className="eyebrow">MVP journey</span>
-        <h2>Conversation first, then one small action.</h2>
-        <p>
-          Recharge keeps the first experience focused: understand the person&apos;s context,
-          ask only what matters, and translate that into a seven-day recovery experiment.
-        </p>
-        <div className="architecture-list">
-          <span>Mock decision engine</span>
-          <span>Approved interventions</span>
-          <span>Safety categories ready</span>
-        </div>
-      </aside>
+      <StagePanel step={step} progressPercent={progressPercent} />
     </main>
+  );
+}
+
+function StagePanel({
+  step,
+  progressPercent,
+}: {
+  step: FlowStep;
+  progressPercent: number;
+}) {
+  return (
+    <aside className="desktop-panel" aria-label="Recharge product notes">
+      <div className="desktop-kicker">
+        <span className="eyebrow">Recharge method</span>
+        <span>{stepLabels[step]}</span>
+      </div>
+      <h2>Know what to try before the day runs away.</h2>
+      <p>
+        Recharge feels like a premium consumer ritual: fast intake, adaptive questions,
+        and one approved recovery experiment at a time.
+      </p>
+
+      <div className="insight-grid">
+        <article className="insight-card large">
+          <span className="panel-label">Recovery window</span>
+          <strong>Open this morning</strong>
+          <div className="wave-chart" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </article>
+        <article className="insight-card">
+          <SunMedium size={18} aria-hidden="true" />
+          <span>First cue</span>
+          <strong>Morning light</strong>
+        </article>
+        <article className="insight-card warm">
+          <Moon size={18} aria-hidden="true" />
+          <span>Tonight</span>
+          <strong>Easy wind-down</strong>
+        </article>
+      </div>
+
+      <div className="system-strip">
+        <span>Progress</span>
+        <div className="system-bar">
+          <i style={{ width: `${progressPercent}%` }} />
+        </div>
+        <strong>{progressPercent}%</strong>
+      </div>
+    </aside>
   );
 }
 
@@ -194,6 +252,7 @@ function LandingScreen({
         <div>
           <span className="panel-label">Today&apos;s rhythm</span>
           <strong>Gentle reset available</strong>
+          <p>A small action matched to your real morning, not a generic checklist.</p>
         </div>
         <div className="orbital-chart" aria-hidden="true">
           <span />
@@ -203,13 +262,15 @@ function LandingScreen({
       </div>
 
       <button className="primary-action" type="button" onClick={onBegin}>
-        Start my Recharge
+        <span>Start my Recharge</span>
+        <ArrowRight size={18} aria-hidden="true" />
       </button>
 
       <div className="demo-strip" aria-label="Demo scenarios">
         {demoPrompts.map((prompt, index) => (
           <button key={prompt} type="button" onClick={() => onDemo(prompt)}>
-            Demo {index + 1}
+            <span>Demo {index + 1}</span>
+            <strong>{demoLabels[index]}</strong>
           </button>
         ))}
       </div>
@@ -250,7 +311,8 @@ function IntakeScreen({
           ))}
         </div>
         <button className="primary-action" type="submit" disabled={!problemText.trim()}>
-          Continue
+          <span>Continue</span>
+          <ArrowRight size={18} aria-hidden="true" />
         </button>
       </form>
     </section>
@@ -287,7 +349,8 @@ function InterpretationScreen({
 
       <p className="microcopy">I just need a couple of details to personalize this.</p>
       <button className="primary-action" type="button" onClick={onContinue}>
-        Answer 3 quick questions
+        <span>Answer 3 quick questions</span>
+        <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
   );
@@ -331,7 +394,8 @@ function FollowUpScreen({
         ))}
       </div>
       <button className="primary-action" type="button" onClick={onContinue} disabled={!canContinue}>
-        Show my starting point
+        <span>Show my starting point</span>
+        <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
   );
@@ -363,7 +427,8 @@ function StartingPointScreen({
       </div>
 
       <button className="primary-action" type="button" onClick={onContinue}>
-        Build my 7-day plan
+        <span>Build my 7-day plan</span>
+        <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
   );
@@ -400,7 +465,8 @@ function PlanScreen({
       </div>
 
       <button className="primary-action" type="button" onClick={onContinue}>
-        Start Day 1
+        <span>Start Day 1</span>
+        <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
   );
@@ -447,7 +513,10 @@ function TodayShell({
             className={activeTab === tab ? "active" : ""}
             onClick={() => onTabChange(tab)}
           >
-            {tab[0].toUpperCase() + tab.slice(1)}
+            {tab === "today" && <Home size={17} aria-hidden="true" />}
+            {tab === "journey" && <Route size={17} aria-hidden="true" />}
+            {tab === "coach" && <MessageCircle size={17} aria-hidden="true" />}
+            <span>{tab[0].toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
       </nav>
@@ -495,7 +564,8 @@ function TodayScreen({
         <h2>{quest.title}</h2>
         <p>{quest.explanation}</p>
         <button className="primary-action" type="button" onClick={onAcceptQuest}>
-          {questAccepted ? "Added for today" : "I\u0027m in"}
+          {questAccepted && <Check size={18} aria-hidden="true" />}
+          <span>{questAccepted ? "Added for today" : "I\u0027m in"}</span>
         </button>
       </section>
 
