@@ -1,7 +1,8 @@
 "use client";
 
-import type { CSSProperties, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import {
   ArrowRight,
   Check,
@@ -28,6 +29,15 @@ import {
   type MissingInformation,
   type ProblemAnalysis,
 } from "../lib/recharge";
+import {
+  composerVariants,
+  layoutTransition,
+  moduleVariants,
+  navVariants,
+  screenVariants,
+  signalGroupVariants,
+  signalVariants,
+} from "./recharge-choreography";
 
 type FlowStep = "landing" | "intake" | "analyzing" | "result" | "missing-info" | "experiment" | "today";
 type AppTab = "today" | "journey" | "update";
@@ -172,53 +182,66 @@ export default function Home() {
           </button>
         </header>
 
-        {step === "landing" && (
-          <LandingScreen
-            problemText={problemText}
-            onChange={setProblemText}
-            onSubmit={submitProblem}
-          />
-        )}
-        {step === "intake" && (
-          <LandingScreen problemText={problemText} onChange={setProblemText} onSubmit={submitProblem} />
-        )}
-        {step === "analyzing" && analysis && (
-          <AnalyzingScreen analysis={analysis} problemText={problemText} />
-        )}
-        {step === "result" && analysis && (
-          <ResultScreen
-            analysis={analysis}
-            problemText={problemText}
-            previewDecision={chooseExperiment(analysis, answers)}
-            missingInformation={missingInformation}
-            onAnswer={answerMissingInformation}
-            onContinue={continueFromResult}
-          />
-        )}
-        {step === "experiment" && analysis && decision && activeExperiment && (
-          <ExperimentScreen
-            analysis={analysis}
-            problemText={problemText}
-            decision={decision}
-            activeExperiment={activeExperiment}
-            onStart={startExperiment}
-          />
-        )}
-        {step === "today" && analysis && decision && activeExperiment && (
-          <TodayShell
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            analysis={analysis}
-            decision={decision}
-            activeExperiment={activeExperiment}
-            checkIn={checkIn}
-            onCheckIn={recordMorningCheckIn}
-            onDone={markDone}
-            updateText={updateText}
-            onUpdateText={setUpdateText}
-            onSubmitUpdate={submitUpdate}
-          />
-        )}
+        <LayoutGroup id="recharge-flow">
+          <AnimatePresence initial={false} mode="wait">
+            {step === "landing" && (
+              <LandingScreen
+                key="landing"
+                problemText={problemText}
+                onChange={setProblemText}
+                onSubmit={submitProblem}
+              />
+            )}
+            {step === "intake" && (
+              <LandingScreen
+                key="intake"
+                problemText={problemText}
+                onChange={setProblemText}
+                onSubmit={submitProblem}
+              />
+            )}
+            {step === "analyzing" && analysis && (
+              <AnalyzingScreen key="analyzing" analysis={analysis} problemText={problemText} />
+            )}
+            {step === "result" && analysis && (
+              <ResultScreen
+                key="result"
+                analysis={analysis}
+                problemText={problemText}
+                previewDecision={chooseExperiment(analysis, answers)}
+                missingInformation={missingInformation}
+                onAnswer={answerMissingInformation}
+                onContinue={continueFromResult}
+              />
+            )}
+            {step === "experiment" && analysis && decision && activeExperiment && (
+              <ExperimentScreen
+                key="experiment"
+                analysis={analysis}
+                problemText={problemText}
+                decision={decision}
+                activeExperiment={activeExperiment}
+                onStart={startExperiment}
+              />
+            )}
+            {step === "today" && analysis && decision && activeExperiment && (
+              <TodayShell
+                key="today"
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                analysis={analysis}
+                decision={decision}
+                activeExperiment={activeExperiment}
+                checkIn={checkIn}
+                onCheckIn={recordMorningCheckIn}
+                onDone={markDone}
+                updateText={updateText}
+                onUpdateText={setUpdateText}
+                onSubmitUpdate={submitUpdate}
+              />
+            )}
+          </AnimatePresence>
+        </LayoutGroup>
       </section>
     </main>
   );
@@ -234,7 +257,15 @@ function LandingScreen({
   onSubmit: (event?: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <section className="screen opening-screen">
+    <motion.section
+      className="screen opening-screen"
+      layout
+      transition={layoutTransition}
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       <div className="opening-copy">
         <h1>What&apos;s been draining your energy lately?</h1>
         <p>
@@ -242,7 +273,14 @@ function LandingScreen({
         </p>
       </div>
 
-      <form className="opening-composer" onSubmit={onSubmit}>
+      <motion.form
+        className="opening-composer"
+        layout
+        layoutId="recharge-composer"
+        transition={layoutTransition}
+        variants={composerVariants}
+        onSubmit={onSubmit}
+      >
         <textarea
           value={problemText}
           onChange={(event) => onChange(event.target.value)}
@@ -265,8 +303,8 @@ function LandingScreen({
           <span>Start my Recharge</span>
           <ArrowRight size={18} aria-hidden="true" />
         </button>
-      </form>
-    </section>
+      </motion.form>
+    </motion.section>
   );
 }
 
@@ -280,22 +318,44 @@ function AnalyzingScreen({
   const signals = getVisibleSignals(problemText, analysis);
 
   return (
-    <section className="screen analysis-screen canvas-transition" aria-live="polite">
-      <div className="compressed-composer">
+    <motion.section
+      className="screen analysis-screen canvas-transition"
+      aria-live="polite"
+      layout
+      transition={layoutTransition}
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
+        className="compressed-composer"
+        layout
+        layoutId="recharge-composer"
+        transition={layoutTransition}
+        variants={composerVariants}
+      >
         <span>Your words</span>
         <p>{problemText}</p>
-      </div>
+      </motion.div>
 
-      <div className="signal-lift" aria-label="Signals Recharge noticed">
-        {signals.map((signal, index) => (
-          <span key={signal} style={{ "--delay": `${index * 120}ms` } as CSSProperties}>
+      <motion.div
+        className="signal-lift"
+        aria-label="Signals Recharge noticed"
+        variants={signalGroupVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        {signals.map((signal) => (
+          <motion.span key={signal} layout variants={signalVariants}>
             {signal}
-          </span>
+          </motion.span>
         ))}
-      </div>
+      </motion.div>
 
       <h1>Finding the first useful move.</h1>
-    </section>
+    </motion.section>
   );
 }
 
@@ -318,31 +378,64 @@ function ResultScreen({
   const { experiment } = previewDecision;
 
   return (
-    <section className="screen personal-canvas">
-      <div className="compressed-composer canvas-composer">
+    <motion.section
+      className="screen personal-canvas"
+      layout
+      transition={layoutTransition}
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
+        className="compressed-composer canvas-composer"
+        layout
+        layoutId="recharge-composer"
+        transition={layoutTransition}
+        variants={composerVariants}
+      >
         <span>Your words</span>
         <p>{problemText}</p>
-      </div>
+      </motion.div>
 
-      <div className="focus-statement assembly-module" style={{ "--delay": "80ms" } as CSSProperties}>
+      <motion.div
+        className="focus-statement assembly-module"
+        layout
+        variants={moduleVariants}
+        custom={0.08}
+      >
         <span>Recharge noticed</span>
         <h1>Let&apos;s start with your {analysis.primaryFocus.toLowerCase()}.</h1>
         <p>{analysis.summary}</p>
-      </div>
+      </motion.div>
 
-      <div className="supporting-signals" aria-label="Related signals">
-        {signals.slice(0, 3).map((signal, index) => (
-          <span
+      <motion.div
+        className="supporting-signals"
+        aria-label="Related signals"
+        variants={signalGroupVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        {signals.slice(0, 3).map((signal) => (
+          <motion.span
             className="assembly-module"
             key={signal}
-            style={{ "--delay": `${220 + index * 90}ms` } as CSSProperties}
+            layout
+            variants={signalVariants}
           >
             {signal}
-          </span>
+          </motion.span>
         ))}
-      </div>
+      </motion.div>
 
-      <article className="hero-experiment assembly-module" style={{ "--delay": "420ms" } as CSSProperties}>
+      <motion.article
+        className="hero-experiment assembly-module"
+        layout
+        layoutId="primary-experiment"
+        variants={moduleVariants}
+        custom={0.34}
+      >
         <div className="experiment-icon">{iconMap[experiment.icon]}</div>
         <div>
           <span>Start here</span>
@@ -359,10 +452,15 @@ function ResultScreen({
             <ArrowRight size={18} aria-hidden="true" />
           </button>
         )}
-      </article>
+      </motion.article>
 
       {missingInformation && (
-        <section className="canvas-question assembly-module" style={{ "--delay": "620ms" } as CSSProperties}>
+        <motion.section
+          className="canvas-question assembly-module"
+          layout
+          variants={moduleVariants}
+          custom={0.48}
+        >
           <span>One quick thing</span>
           <h2>{missingInformation.prompt}</h2>
           <div className="canvas-options">
@@ -372,9 +470,9 @@ function ResultScreen({
               </button>
             ))}
           </div>
-        </section>
+        </motion.section>
       )}
-    </section>
+    </motion.section>
   );
 }
 
@@ -394,21 +492,35 @@ function ExperimentScreen({
   const { experiment } = decision;
 
   return (
-    <section className="screen assembled-screen">
+    <motion.section
+      className="screen assembled-screen"
+      layout
+      transition={layoutTransition}
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       <AssemblySummary analysis={analysis} problemText={problemText} status="Your first step" />
-      <div className="experiment-hero assembly-module hero-assembly" style={{ "--delay": "80ms" } as CSSProperties}>
+      <motion.div
+        className="experiment-hero assembly-module hero-assembly"
+        layout
+        layoutId="primary-experiment"
+        variants={moduleVariants}
+        custom={0.08}
+      >
         <span className="eyebrow">Start here</span>
         <div className="experiment-icon">{iconMap[experiment.icon]}</div>
         <h1>{experiment.title}</h1>
         <p>{experiment.userAction}</p>
-      </div>
+      </motion.div>
 
-      <div className="why-card assembly-module" style={{ "--delay": "220ms" } as CSSProperties}>
+      <motion.div className="why-card assembly-module" layout variants={moduleVariants} custom={0.18}>
         <span className="panel-label">Why this helps</span>
         <p>{decision.rationale}</p>
-      </div>
+      </motion.div>
 
-      <div className="experiment-meta assembly-module" style={{ "--delay": "320ms" } as CSSProperties}>
+      <motion.div className="experiment-meta assembly-module" layout variants={moduleVariants} custom={0.26}>
         <article>
           <span>Duration</span>
           <strong>{experiment.durationDays}-day experiment</strong>
@@ -417,11 +529,11 @@ function ExperimentScreen({
           <span>Track</span>
           <strong>{experiment.targetOutcome}</strong>
         </article>
-      </div>
+      </motion.div>
 
-      <div className="assembly-module" style={{ "--delay": "420ms" } as CSSProperties}>
+      <motion.div className="assembly-module" layout variants={moduleVariants} custom={0.34}>
         <ExperimentDots activeExperiment={activeExperiment} />
-      </div>
+      </motion.div>
 
       <p className="microcopy">
         This is intentionally small: one change, three days, then Recharge can learn from what happens.
@@ -431,7 +543,7 @@ function ExperimentScreen({
         <span>Start my experiment</span>
         <ArrowRight size={18} aria-hidden="true" />
       </button>
-    </section>
+    </motion.section>
   );
 }
 
@@ -447,13 +559,19 @@ function AssemblySummary({
   const compactText = problemText.length > 92 ? `${problemText.slice(0, 89)}...` : problemText;
 
   return (
-    <section className="assembly-summary" aria-label="Compact Recharge summary">
+    <motion.section
+      className="assembly-summary"
+      aria-label="Compact Recharge summary"
+      layout
+      variants={moduleVariants}
+      custom={0}
+    >
       <div>
         <span className="panel-label">{status}</span>
         <strong>{analysis.primaryFocus}</strong>
       </div>
       <p>{compactText}</p>
-    </section>
+    </motion.section>
   );
 }
 
@@ -483,29 +601,53 @@ function TodayShell({
   onSubmitUpdate: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <section className="screen app-view">
-      {activeTab === "today" && (
-        <TodayScreen
-          analysis={analysis}
-          decision={decision}
-          activeExperiment={activeExperiment}
-          checkIn={checkIn}
-          onCheckIn={onCheckIn}
-          onDone={onDone}
-        />
-      )}
-      {activeTab === "journey" && (
-        <JourneyScreen analysis={analysis} decision={decision} activeExperiment={activeExperiment} />
-      )}
-      {activeTab === "update" && (
-        <UpdateScreen
-          updateText={updateText}
-          onUpdateText={onUpdateText}
-          onSubmitUpdate={onSubmitUpdate}
-        />
-      )}
+    <motion.section
+      className="screen app-view"
+      layout
+      transition={layoutTransition}
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <AnimatePresence initial={false} mode="wait">
+        {activeTab === "today" && (
+          <TodayScreen
+            key="today-panel"
+            analysis={analysis}
+            decision={decision}
+            activeExperiment={activeExperiment}
+            checkIn={checkIn}
+            onCheckIn={onCheckIn}
+            onDone={onDone}
+          />
+        )}
+        {activeTab === "journey" && (
+          <JourneyScreen
+            key="journey-panel"
+            analysis={analysis}
+            decision={decision}
+            activeExperiment={activeExperiment}
+          />
+        )}
+        {activeTab === "update" && (
+          <UpdateScreen
+            key="update-panel"
+            updateText={updateText}
+            onUpdateText={onUpdateText}
+            onSubmitUpdate={onSubmitUpdate}
+          />
+        )}
+      </AnimatePresence>
 
-      <nav className="bottom-nav" aria-label="Primary destinations">
+      <motion.nav
+        className="bottom-nav"
+        aria-label="Primary destinations"
+        variants={navVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
         {(["today", "journey", "update"] as AppTab[]).map((tab) => (
           <button
             key={tab}
@@ -519,8 +661,8 @@ function TodayShell({
             <span>{tab === "update" ? "Update" : tab[0].toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
-      </nav>
-    </section>
+      </motion.nav>
+    </motion.section>
   );
 }
 
@@ -543,7 +685,14 @@ function TodayScreen({
   const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
 
   return (
-    <>
+    <motion.div
+      className="tab-panel"
+      layout
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       <span className="eyebrow">Today</span>
       <h1>Today&apos;s experiment</h1>
 
@@ -586,7 +735,7 @@ function TodayScreen({
         <span className="panel-label">Why we&apos;re testing this</span>
         <p>{experiment.explanation}</p>
       </div>
-    </>
+    </motion.div>
   );
 }
 
@@ -602,7 +751,14 @@ function JourneyScreen({
   const { experiment, learnedSignals } = decision;
 
   return (
-    <>
+    <motion.div
+      className="tab-panel"
+      layout
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       <span className="eyebrow">Your Journey</span>
       <h1>What Recharge is learning.</h1>
 
@@ -639,7 +795,7 @@ function JourneyScreen({
           ))}
         </div>
       </section>
-    </>
+    </motion.div>
   );
 }
 
@@ -653,7 +809,14 @@ function UpdateScreen({
   onSubmitUpdate: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <>
+    <motion.div
+      className="tab-panel"
+      layout
+      variants={screenVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       <span className="eyebrow">Something else going on?</span>
       <h1>Tell Recharge what changed.</h1>
       <p className="lead">
@@ -671,7 +834,7 @@ function UpdateScreen({
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </form>
-    </>
+    </motion.div>
   );
 }
 

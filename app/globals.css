@@ -142,7 +142,6 @@ button:disabled {
   width: min(100%, 1180px);
   margin: 0 auto;
   padding: 18px 32px 8px;
-  animation: barEnter 520ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .brand-lockup {
@@ -217,7 +216,6 @@ button:disabled {
   padding: clamp(24px, 5vh, 52px) 32px 48px;
   overflow-y: auto;
   scrollbar-width: none;
-  animation: screenEnter 440ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .screen::-webkit-scrollbar {
@@ -260,7 +258,6 @@ button:disabled {
   display: grid;
   gap: 14px;
   width: 100%;
-  animation: composerRise 620ms cubic-bezier(0.2, 0.78, 0.22, 1) 120ms both;
 }
 
 .opening-composer textarea {
@@ -326,7 +323,6 @@ button:disabled {
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.045);
   color: #f6eee6;
-  animation: compressIn 520ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .compressed-composer span,
@@ -368,8 +364,7 @@ button:disabled {
 }
 
 .signal-lift span {
-  animation: signalDetach 780ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
-  animation-delay: var(--delay, 0ms);
+  will-change: transform, opacity;
 }
 
 .personal-canvas {
@@ -633,7 +628,6 @@ h2 {
   background:
     linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(245, 169, 155, 0.08) 55%, rgba(184, 183, 255, 0.09)),
     rgba(13, 19, 32, 0.92);
-  animation: moduleAssemble 700ms cubic-bezier(0.2, 0.78, 0.22, 1) 120ms both;
 }
 
 .signal-card strong {
@@ -851,7 +845,6 @@ textarea:focus {
   box-shadow:
     0 12px 34px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  animation: compressIn 520ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .assembly-summary div {
@@ -988,8 +981,6 @@ textarea:focus {
 }
 
 .assembly-module {
-  animation: moduleAssemble 640ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
-  animation-delay: var(--delay, 0ms);
   transform-origin: center top;
   will-change: transform, opacity, filter;
 }
@@ -1149,8 +1140,7 @@ textarea:focus {
 }
 
 .assembly-option {
-  animation: optionAssemble 460ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
-  animation-delay: var(--delay, 0ms);
+  will-change: transform, opacity;
 }
 
 .factor-card strong {
@@ -1370,6 +1360,14 @@ textarea:focus {
   padding-bottom: 98px;
 }
 
+.tab-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
 .checkin-card,
 .quest-card {
   display: grid;
@@ -1438,7 +1436,6 @@ textarea:focus {
   background: rgba(8, 12, 22, 0.86);
   backdrop-filter: blur(18px);
   transform: translateX(-50%);
-  animation: navEnter 560ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .bottom-nav button {
@@ -1606,66 +1603,6 @@ textarea:focus {
   }
 }
 
-@keyframes screenEnter {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes barEnter {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes navEnter {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 18px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-  }
-}
-
-@keyframes composerRise {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes signalDetach {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.94);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @keyframes orbitalFloat {
   from {
     transform: translateY(0) rotate(-3deg);
@@ -1673,42 +1610,6 @@ textarea:focus {
 
   to {
     transform: translateY(-8px) rotate(4deg);
-  }
-}
-
-@keyframes compressIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(1.04);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes moduleAssemble {
-  from {
-    opacity: 0;
-    transform: translateY(24px) scale(0.975);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes optionAssemble {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
