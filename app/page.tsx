@@ -293,10 +293,10 @@ function LandingScreen({
         <ArrowRight size={18} aria-hidden="true" />
       </button>
 
-      <div className="demo-strip" aria-label="Demo scenarios">
+      <div className="demo-strip" aria-label="Quick start examples">
         {demoPrompts.map((prompt, index) => (
           <button key={prompt} type="button" onClick={() => onDemo(prompt)}>
-            <span>Try {index + 1}</span>
+            <span>Example</span>
             <strong>{demoLabels[index]}</strong>
           </button>
         ))}
