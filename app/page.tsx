@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { CSSProperties, FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -82,7 +83,7 @@ export default function Home() {
   useEffect(() => {
     const resetScroll = () => {
       window.scrollTo({ top: 0, left: 0 });
-      document.querySelectorAll(".screen").forEach((element) => {
+      document.querySelectorAll(".app-shell, .screen").forEach((element) => {
         element.scrollTo({ top: 0, left: 0 });
       });
     };
@@ -205,16 +206,22 @@ export default function Home() {
             onSubmit={submitProblem}
           />
         )}
-        {step === "analyzing" && <AnalyzingScreen />}
+        {step === "analyzing" && analysis && (
+          <AnalyzingScreen analysis={analysis} problemText={problemText} />
+        )}
         {step === "result" && analysis && (
           <ResultScreen
             analysis={analysis}
+            problemText={problemText}
+            previewDecision={chooseExperiment(analysis, answers)}
             needsInformation={Boolean(missingInformation)}
             onContinue={continueFromResult}
           />
         )}
-        {step === "missing-info" && missingInformation && (
+        {step === "missing-info" && analysis && missingInformation && (
           <MissingInformationScreen
+            analysis={analysis}
+            problemText={problemText}
             prompt={missingInformation.prompt}
             reason={missingInformation.reason}
             options={missingInformation.options}
@@ -224,6 +231,7 @@ export default function Home() {
         {step === "experiment" && analysis && decision && activeExperiment && (
           <ExperimentScreen
             analysis={analysis}
+            problemText={problemText}
             decision={decision}
             activeExperiment={activeExperiment}
             onStart={startExperiment}
@@ -410,15 +418,29 @@ function IntakeScreen({
   );
 }
 
-function AnalyzingScreen() {
+function AnalyzingScreen({
+  analysis,
+  problemText,
+}: {
+  analysis: ProblemAnalysis;
+  problemText: string;
+}) {
   return (
-    <section className="screen analysis-screen" aria-live="polite">
-      <span className="eyebrow">Finding where to start...</span>
-      <h1>Extracting the pattern.</h1>
-      <div className="analysis-card">
-        <span />
-        <span />
-        <span />
+    <section className="screen analysis-screen assembled-screen" aria-live="polite">
+      <AssemblySummary analysis={analysis} problemText={problemText} status="Building your Recharge" />
+      <div className="assembly-stage">
+        <span className="eyebrow">Finding where to start...</span>
+        <h1>Chaos becomes clarity.</h1>
+        <div className="assembly-radar" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="analysis-card">
+          <span />
+          <span />
+          <span />
+        </div>
       </div>
       <p className="lead">
         Recharge is turning your words into factors, constraints and the next useful experiment.
@@ -429,30 +451,74 @@ function AnalyzingScreen() {
 
 function ResultScreen({
   analysis,
+  problemText,
+  previewDecision,
   needsInformation,
   onContinue,
 }: {
   analysis: ProblemAnalysis;
+  problemText: string;
+  previewDecision: ExperimentDecision;
   needsInformation: boolean;
   onContinue: () => void;
 }) {
   return (
-    <section className="screen">
-      <span className="eyebrow">Your Recharge</span>
-      <h1>{analysis.primaryFocus}</h1>
-      <p className="lead">{analysis.summary}</p>
+    <section className="screen assembled-screen result-assembly">
+      <AssemblySummary analysis={analysis} problemText={problemText} status="Your Recharge" />
 
-      {analysis.contextBadge && <div className="context-badge">{analysis.contextBadge}</div>}
+      <div className="assembly-module focus-module" style={{ "--delay": "80ms" } as CSSProperties}>
+        <span className="eyebrow">What seems to matter most</span>
+        <h1>{analysis.primaryFocus}</h1>
+        <p className="lead">{analysis.summary}</p>
+        {analysis.contextBadge && <div className="context-badge">{analysis.contextBadge}</div>}
+      </div>
 
       <div className="factor-grid">
-        {analysis.factors.map((factor) => (
-          <article className="factor-card" key={factor.id}>
+        {analysis.factors.map((factor, index) => (
+          <article
+            className="factor-card assembly-module"
+            key={factor.id}
+            style={{ "--delay": `${180 + index * 90}ms` } as CSSProperties}
+          >
             <span className={`confidence ${factor.confidence}`}>{factor.confidence}</span>
             <strong>{factor.label}</strong>
             <p>{factor.description}</p>
           </article>
         ))}
       </div>
+
+      {analysis.missingInformation && (
+        <article className="assembly-module question-preview" style={{ "--delay": "480ms" } as CSSProperties}>
+          <span className="panel-label">One thing before we start</span>
+          <strong>{analysis.missingInformation.prompt}</strong>
+          <p>{analysis.missingInformation.reason}</p>
+        </article>
+      )}
+
+      <article className="assembly-module experiment-preview" style={{ "--delay": "580ms" } as CSSProperties}>
+        <span className="panel-label">Let&apos;s start here</span>
+        <div className="experiment-title-row">
+          <div className="experiment-icon small">{iconMap[previewDecision.experiment.icon]}</div>
+          <div>
+            <strong>{previewDecision.experiment.title}</strong>
+            <p>{needsInformation ? "Recharge will lock this in after one answer." : previewDecision.experiment.userAction}</p>
+          </div>
+        </div>
+      </article>
+
+      <article className="assembly-module today-preview" style={{ "--delay": "680ms" } as CSSProperties}>
+        <span className="panel-label">Today</span>
+        <div className="today-preview-row">
+          <strong>Day 1 ready</strong>
+          <span>{previewDecision.experiment.durationDays} days</span>
+        </div>
+        <div className="mini-progress" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </article>
 
       <button className="primary-action" type="button" onClick={onContinue}>
         <span>{needsInformation ? "Answer one useful question" : "Show first experiment"}</span>
@@ -463,27 +529,40 @@ function ResultScreen({
 }
 
 function MissingInformationScreen({
+  analysis,
+  problemText,
   prompt,
   reason,
   options,
   onAnswer,
 }: {
+  analysis: ProblemAnalysis;
+  problemText: string;
   prompt: string;
   reason: string;
   options: string[];
   onAnswer: (answer: string) => void;
 }) {
   return (
-    <section className="screen">
-      <span className="eyebrow">One thing before we start</span>
-      <h1>{prompt}</h1>
-      <p className="lead">{reason}</p>
-      <div className="option-grid decision-grid">
-        {options.map((option) => (
-          <button className="option" key={option} type="button" onClick={() => onAnswer(option)}>
-            {option}
-          </button>
-        ))}
+    <section className="screen assembled-screen">
+      <AssemblySummary analysis={analysis} problemText={problemText} status="Decision point" />
+      <div className="assembly-module question-focus" style={{ "--delay": "80ms" } as CSSProperties}>
+        <span className="eyebrow">One thing before we start</span>
+        <h1>{prompt}</h1>
+        <p className="lead">{reason}</p>
+        <div className="option-grid decision-grid">
+          {options.map((option, index) => (
+            <button
+              className="option assembly-option"
+              key={option}
+              type="button"
+              onClick={() => onAnswer(option)}
+              style={{ "--delay": `${220 + index * 55}ms` } as CSSProperties}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -491,11 +570,13 @@ function MissingInformationScreen({
 
 function ExperimentScreen({
   analysis,
+  problemText,
   decision,
   activeExperiment,
   onStart,
 }: {
   analysis: ProblemAnalysis;
+  problemText: string;
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
   onStart: () => void;
@@ -503,20 +584,21 @@ function ExperimentScreen({
   const { experiment } = decision;
 
   return (
-    <section className="screen">
-      <span className="eyebrow">Let&apos;s start here</span>
-      <div className="experiment-hero">
+    <section className="screen assembled-screen">
+      <AssemblySummary analysis={analysis} problemText={problemText} status="Experiment selected" />
+      <div className="experiment-hero assembly-module hero-assembly" style={{ "--delay": "80ms" } as CSSProperties}>
+        <span className="eyebrow">Let&apos;s start here</span>
         <div className="experiment-icon">{iconMap[experiment.icon]}</div>
         <h1>{experiment.title}</h1>
         <p>{experiment.userAction}</p>
       </div>
 
-      <div className="why-card">
+      <div className="why-card assembly-module" style={{ "--delay": "220ms" } as CSSProperties}>
         <span className="panel-label">Why this?</span>
         <p>{decision.rationale}</p>
       </div>
 
-      <div className="experiment-meta">
+      <div className="experiment-meta assembly-module" style={{ "--delay": "320ms" } as CSSProperties}>
         <article>
           <span>Duration</span>
           <strong>{experiment.durationDays}-day experiment</strong>
@@ -527,7 +609,9 @@ function ExperimentScreen({
         </article>
       </div>
 
-      <ExperimentDots activeExperiment={activeExperiment} />
+      <div className="assembly-module" style={{ "--delay": "420ms" } as CSSProperties}>
+        <ExperimentDots activeExperiment={activeExperiment} />
+      </div>
 
       <p className="microcopy">
         Recharge is testing this one thing first because your main pattern is {analysis.primaryFocus.toLowerCase()}.
@@ -537,6 +621,28 @@ function ExperimentScreen({
         <span>Start experiment</span>
         <ArrowRight size={18} aria-hidden="true" />
       </button>
+    </section>
+  );
+}
+
+function AssemblySummary({
+  analysis,
+  problemText,
+  status,
+}: {
+  analysis: ProblemAnalysis;
+  problemText: string;
+  status: string;
+}) {
+  const compactText = problemText.length > 92 ? `${problemText.slice(0, 89)}...` : problemText;
+
+  return (
+    <section className="assembly-summary" aria-label="Compact Recharge summary">
+      <div>
+        <span className="panel-label">{status}</span>
+        <strong>{analysis.primaryFocus}</strong>
+      </div>
+      <p>{compactText}</p>
     </section>
   );
 }
