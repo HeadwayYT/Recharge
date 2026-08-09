@@ -4,48 +4,61 @@ import { FormEvent, useMemo, useState } from "react";
 import {
   ArrowRight,
   Check,
+  Coffee,
   Home,
   MessageCircle,
   Moon,
   Route,
   Sparkles,
   SunMedium,
+  TimerReset,
 } from "lucide-react";
 import {
   analyzeProblem,
-  buildPlan,
-  buildProfile,
+  chooseExperiment,
+  createActiveExperiment,
+  getMissingInformation,
+  recordAdherence,
+  recordCheckIn,
+  recordExperimentStart,
+  type ActiveExperiment,
+  type Experiment,
+  type ExperimentDecision,
   type ProblemAnalysis,
-  type RechargePlan,
-  type RechargeProfile,
 } from "../lib/recharge";
 
-type FlowStep = "landing" | "intake" | "interpretation" | "followup" | "starting-point" | "plan" | "today";
-type AppTab = "today" | "journey" | "coach";
+type FlowStep = "landing" | "intake" | "analyzing" | "result" | "missing-info" | "experiment" | "today";
+type AppTab = "today" | "journey" | "update";
 
-const quickStarts = [
-  "I can't fall asleep",
-  "I'm always tired",
-  "My shifts disrupt my sleep",
-  "I wake up during the night",
-];
+const quickStarts = ["Always tired", "Can't switch off", "Irregular schedule", "Broken nights"];
 
 const demoPrompts = [
-  "I sleep around 7 hours but still wake up exhausted, and I drink coffee late in the day.",
+  "I sleep about seven hours but still wake up exhausted. By 3 PM I need coffee to keep going.",
   "My shifts disrupt my sleep and my schedule changes every few days.",
-  "My young child wakes me up during the night and I feel depleted in the morning.",
+  "Our baby was awake all night and I feel depleted in the morning.",
+  "I feel wired at night and can't switch off even when I go to bed on time.",
 ];
 
-const demoLabels = ["Day worker", "Shift worker", "Parent"];
+const demoLabels = ["Morning fatigue", "Shift worker", "Parent", "Switching off"];
 
 const stepLabels: Record<FlowStep, string> = {
   landing: "Start",
-  intake: "Intake",
-  interpretation: "Read",
-  followup: "Tune",
-  "starting-point": "Focus",
-  plan: "Plan",
+  intake: "Input",
+  analyzing: "Extract",
+  result: "Pattern",
+  "missing-info": "Decide",
+  experiment: "Experiment",
   today: "Today",
+};
+
+const iconMap: Record<Experiment["icon"], React.ReactNode> = {
+  sun: <SunMedium size={22} aria-hidden="true" />,
+  coffee: <Coffee size={22} aria-hidden="true" />,
+  clock: <TimerReset size={22} aria-hidden="true" />,
+  moon: <Moon size={22} aria-hidden="true" />,
+  spark: <Sparkles size={22} aria-hidden="true" />,
+  heart: <Sparkles size={22} aria-hidden="true" />,
+  steps: <Route size={22} aria-hidden="true" />,
 };
 
 export default function Home() {
@@ -54,59 +67,100 @@ export default function Home() {
   const [problemText, setProblemText] = useState("");
   const [analysis, setAnalysis] = useState<ProblemAnalysis | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [energy, setEnergy] = useState("Steady");
-  const [questAccepted, setQuestAccepted] = useState(false);
+  const [decision, setDecision] = useState<ExperimentDecision | null>(null);
+  const [activeExperiment, setActiveExperiment] = useState<ActiveExperiment | null>(null);
+  const [checkIn, setCheckIn] = useState("");
+  const [updateText, setUpdateText] = useState("");
 
-  const profile = useMemo<RechargeProfile | null>(() => {
-    if (!analysis) return null;
-    return buildProfile(analysis, answers);
-  }, [analysis, answers]);
+  const progressPercent = useMemo(() => {
+    const currentStepIndex = Object.keys(stepLabels).indexOf(step);
+    return step === "landing" ? 8 : Math.round(((currentStepIndex + 1) / Object.keys(stepLabels).length) * 100);
+  }, [step]);
 
-  const plan = useMemo<RechargePlan | null>(() => {
-    if (!analysis || !profile) return null;
-    return buildPlan(analysis, profile);
-  }, [analysis, profile]);
-
-  const currentStepIndex = Object.keys(stepLabels).indexOf(step);
-  const progressPercent = step === "landing" ? 8 : Math.round(((currentStepIndex + 1) / Object.keys(stepLabels).length) * 100);
-  const allFollowUpsAnswered = Boolean(
-    analysis?.followUps.every((question) => answers[question.id]),
-  );
+  const missingInformation = analysis ? getMissingInformation(analysis) : null;
 
   function begin() {
     setStep("intake");
   }
 
-  function submitProblem(event?: FormEvent<HTMLFormElement>) {
+  function submitProblem(event?: FormEvent<HTMLFormElement>, explicitText?: string) {
     event?.preventDefault();
-    const text = problemText.trim();
+    const text = (explicitText ?? problemText).trim();
     if (!text) return;
 
-    setAnalysis(analyzeProblem(text));
+    const nextAnalysis = analyzeProblem(text);
+    setProblemText(text);
+    setAnalysis(nextAnalysis);
     setAnswers({});
-    setQuestAccepted(false);
-    setStep("interpretation");
+    setDecision(null);
+    setActiveExperiment(null);
+    setCheckIn("");
+    setActiveTab("today");
+    setStep("analyzing");
+    window.setTimeout(() => setStep("result"), 720);
   }
 
   function selectDemo(prompt: string) {
-    setProblemText(prompt);
-    setAnalysis(analyzeProblem(prompt));
-    setAnswers({});
-    setQuestAccepted(false);
-    setStep("interpretation");
+    submitProblem(undefined, prompt);
   }
 
-  function answerQuestion(questionId: string, value: string) {
-    setAnswers((current) => ({ ...current, [questionId]: value }));
+  function chooseFirstExperiment(nextAnswers: Record<string, string>) {
+    if (!analysis) return;
+    const nextDecision = chooseExperiment(analysis, nextAnswers);
+    setDecision(nextDecision);
+    setActiveExperiment(createActiveExperiment(nextDecision.experiment));
+    setStep("experiment");
+  }
+
+  function continueFromResult() {
+    if (!analysis) return;
+    if (getMissingInformation(analysis)) {
+      setStep("missing-info");
+      return;
+    }
+    chooseFirstExperiment(answers);
+  }
+
+  function answerMissingInformation(value: string) {
+    if (!missingInformation) return;
+    const nextAnswers = { ...answers, [missingInformation.id]: value };
+    setAnswers(nextAnswers);
+    chooseFirstExperiment(nextAnswers);
+  }
+
+  function startExperiment() {
+    if (!activeExperiment) return;
+    setActiveExperiment(recordExperimentStart(activeExperiment));
+    setActiveTab("today");
+    setStep("today");
+  }
+
+  function markDone() {
+    if (!activeExperiment) return;
+    setActiveExperiment(recordAdherence(activeExperiment));
+  }
+
+  function recordMorningCheckIn(value: string) {
+    if (!activeExperiment || !decision) return;
+    setCheckIn(value);
+    setActiveExperiment(recordCheckIn(activeExperiment, decision.experiment.targetOutcome, value));
   }
 
   function restart() {
     setProblemText("");
     setAnalysis(null);
     setAnswers({});
-    setQuestAccepted(false);
+    setDecision(null);
+    setActiveExperiment(null);
+    setCheckIn("");
+    setUpdateText("");
     setActiveTab("today");
     setStep("landing");
+  }
+
+  function submitUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitProblem(undefined, updateText);
   }
 
   return (
@@ -123,7 +177,7 @@ export default function Home() {
           </button>
           <span className="status-pill">
             <Sparkles size={13} aria-hidden="true" />
-            Private beta
+            Behaviour engine
           </span>
         </header>
 
@@ -139,39 +193,53 @@ export default function Home() {
             onSubmit={submitProblem}
           />
         )}
-        {step === "interpretation" && analysis && (
-          <InterpretationScreen analysis={analysis} onContinue={() => setStep("followup")} />
-        )}
-        {step === "followup" && analysis && (
-          <FollowUpScreen
+        {step === "analyzing" && <AnalyzingScreen />}
+        {step === "result" && analysis && (
+          <ResultScreen
             analysis={analysis}
-            answers={answers}
-            onAnswer={answerQuestion}
-            onContinue={() => setStep("starting-point")}
-            canContinue={allFollowUpsAnswered}
+            needsInformation={Boolean(missingInformation)}
+            onContinue={continueFromResult}
           />
         )}
-        {step === "starting-point" && profile && (
-          <StartingPointScreen profile={profile} onContinue={() => setStep("plan")} />
+        {step === "missing-info" && missingInformation && (
+          <MissingInformationScreen
+            prompt={missingInformation.prompt}
+            reason={missingInformation.reason}
+            options={missingInformation.options}
+            onAnswer={answerMissingInformation}
+          />
         )}
-        {step === "plan" && plan && (
-          <PlanScreen plan={plan} onContinue={() => setStep("today")} />
+        {step === "experiment" && analysis && decision && activeExperiment && (
+          <ExperimentScreen
+            analysis={analysis}
+            decision={decision}
+            activeExperiment={activeExperiment}
+            onStart={startExperiment}
+          />
         )}
-        {step === "today" && plan && profile && (
+        {step === "today" && analysis && decision && activeExperiment && (
           <TodayShell
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            plan={plan}
-            profile={profile}
-            energy={energy}
-            onEnergyChange={setEnergy}
-            questAccepted={questAccepted}
-            onAcceptQuest={() => setQuestAccepted(true)}
+            analysis={analysis}
+            decision={decision}
+            activeExperiment={activeExperiment}
+            checkIn={checkIn}
+            onCheckIn={recordMorningCheckIn}
+            onDone={markDone}
+            updateText={updateText}
+            onUpdateText={setUpdateText}
+            onSubmitUpdate={submitUpdate}
           />
         )}
       </section>
 
-      <StagePanel step={step} progressPercent={progressPercent} />
+      <StagePanel
+        step={step}
+        progressPercent={progressPercent}
+        analysis={analysis}
+        decision={decision}
+      />
     </main>
   );
 }
@@ -179,26 +247,34 @@ export default function Home() {
 function StagePanel({
   step,
   progressPercent,
+  analysis,
+  decision,
 }: {
   step: FlowStep;
   progressPercent: number;
+  analysis: ProblemAnalysis | null;
+  decision: ExperimentDecision | null;
 }) {
+  const headline = decision
+    ? "One experiment, then Recharge learns from the signal."
+    : "Turn a messy problem into the next useful action.";
+
   return (
     <aside className="desktop-panel" aria-label="Recharge product notes">
       <div className="desktop-kicker">
-        <span className="eyebrow">Recharge method</span>
+        <span className="eyebrow">Adaptive recovery engine</span>
         <span>{stepLabels[step]}</span>
       </div>
-      <h2>Know what to try before the day runs away.</h2>
+      <h2>{headline}</h2>
       <p>
-        Recharge feels like a premium consumer ritual: fast intake, adaptive questions,
-        and one approved recovery experiment at a time.
+        Recharge is not a chat thread. It extracts a pattern, selects one approved
+        behavioural experiment, tracks what happens, and adapts the next step.
       </p>
 
       <div className="insight-grid">
         <article className="insight-card large">
-          <span className="panel-label">Recovery window</span>
-          <strong>Open this morning</strong>
+          <span className="panel-label">Next best interaction</span>
+          <strong>{decision?.nextBestInteraction.replaceAll("_", " ") ?? "Pattern extraction"}</strong>
           <div className="wave-chart" aria-hidden="true">
             <span />
             <span />
@@ -209,13 +285,13 @@ function StagePanel({
         </article>
         <article className="insight-card">
           <SunMedium size={18} aria-hidden="true" />
-          <span>First cue</span>
-          <strong>Morning light</strong>
+          <span>Primary focus</span>
+          <strong>{analysis?.primaryFocus ?? "Recovery signal"}</strong>
         </article>
         <article className="insight-card warm">
           <Moon size={18} aria-hidden="true" />
-          <span>Tonight</span>
-          <strong>Easy wind-down</strong>
+          <span>Testing now</span>
+          <strong>{decision?.experiment.title ?? "Waiting for context"}</strong>
         </article>
       </div>
 
@@ -241,18 +317,18 @@ function LandingScreen({
     <section className="screen hero-screen">
       <div className="hero-copy">
         <span className="eyebrow">Sleep, recovery, energy</span>
-        <h1>Start your Recharge</h1>
+        <h1>Start with what is actually happening.</h1>
         <p>
-          A calm two-minute check-in that turns what is getting in the way of rest
-          into one personalized action for today.
+          Recharge turns your situation into one small recovery experiment, then
+          learns from what you actually try.
         </p>
       </div>
 
       <div className="signal-card">
         <div>
-          <span className="panel-label">Today&apos;s rhythm</span>
-          <strong>Gentle reset available</strong>
-          <p>A small action matched to your real morning, not a generic checklist.</p>
+          <span className="panel-label">Behaviour loop</span>
+          <strong>Understand. Test. Adapt.</strong>
+          <p>Structured experiments instead of generic sleep advice.</p>
         </div>
         <div className="orbital-chart" aria-hidden="true">
           <span />
@@ -289,14 +365,17 @@ function IntakeScreen({
 }) {
   return (
     <section className="screen">
-      <span className="eyebrow">Start with your words</span>
-      <h1>What&apos;s been getting in the way of feeling rested?</h1>
+      <span className="eyebrow">Free-text intake</span>
+      <h1>How have you been feeling lately?</h1>
+      <p className="lead">
+        Tell Recharge what&apos;s been getting in the way of feeling rested or energized.
+      </p>
       <form className="intake-form" onSubmit={onSubmit}>
         <textarea
           value={problemText}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="I sleep around 7 hours but still wake up exhausted..."
-          aria-label="Describe what is getting in the way of feeling rested"
+          placeholder="I sleep about seven hours but still wake up exhausted and by 3 PM I need coffee to keep going."
+          aria-label="Describe what is getting in the way of feeling rested or energized"
         />
         <div className="chip-row">
           {quickStarts.map((chip) => (
@@ -311,7 +390,7 @@ function IntakeScreen({
           ))}
         </div>
         <button className="primary-action" type="submit" disabled={!problemText.trim()}>
-          <span>Continue</span>
+          <span>Find where to start</span>
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </form>
@@ -319,153 +398,131 @@ function IntakeScreen({
   );
 }
 
-function InterpretationScreen({
-  analysis,
-  onContinue,
-}: {
-  analysis: ProblemAnalysis;
-  onContinue: () => void;
-}) {
+function AnalyzingScreen() {
   return (
-    <section className="screen">
-      <span className="eyebrow">What I&apos;m hearing</span>
-      <h1>{analysis.mainChallenge}</h1>
-      <p className="lead">{analysis.interpretation}</p>
-
-      <div className="panel-stack">
-        <InfoPanel title="Main challenge" body={analysis.mainChallenge} />
-        <div className="soft-panel">
-          <span className="panel-label">Things worth exploring</span>
-          <div className="factor-list">
-            {analysis.factors.map((factor) => (
-              <article key={factor.id}>
-                <strong>{factor.label}</strong>
-                <p>{factor.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
+    <section className="screen analysis-screen" aria-live="polite">
+      <span className="eyebrow">Finding where to start...</span>
+      <h1>Extracting the pattern.</h1>
+      <div className="analysis-card">
+        <span />
+        <span />
+        <span />
       </div>
-
-      <p className="microcopy">I just need a couple of details to personalize this.</p>
-      <button className="primary-action" type="button" onClick={onContinue}>
-        <span>Answer 3 quick questions</span>
-        <ArrowRight size={18} aria-hidden="true" />
-      </button>
+      <p className="lead">
+        Recharge is turning your words into factors, constraints and the next useful experiment.
+      </p>
     </section>
   );
 }
 
-function FollowUpScreen({
+function ResultScreen({
   analysis,
-  answers,
-  onAnswer,
+  needsInformation,
   onContinue,
-  canContinue,
 }: {
   analysis: ProblemAnalysis;
-  answers: Record<string, string>;
-  onAnswer: (questionId: string, value: string) => void;
+  needsInformation: boolean;
   onContinue: () => void;
-  canContinue: boolean;
 }) {
   return (
     <section className="screen">
-      <span className="eyebrow">Adaptive follow-up</span>
-      <h1>Three details, then your starting point.</h1>
-      <div className="question-list">
-        {analysis.followUps.slice(0, 3).map((question, index) => (
-          <article className="question-card" key={question.id}>
-            <span className="panel-label">Question {index + 1}</span>
-            <h2>{question.prompt}</h2>
-            <div className="option-grid">
-              {question.options.map((option) => (
-                <button
-                  className={answers[question.id] === option ? "selected option" : "option"}
-                  key={option}
-                  type="button"
-                  onClick={() => onAnswer(question.id, option)}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
+      <span className="eyebrow">Your Recharge</span>
+      <h1>{analysis.primaryFocus}</h1>
+      <p className="lead">{analysis.summary}</p>
+
+      {analysis.contextBadge && <div className="context-badge">{analysis.contextBadge}</div>}
+
+      <div className="factor-grid">
+        {analysis.factors.map((factor) => (
+          <article className="factor-card" key={factor.id}>
+            <span className={`confidence ${factor.confidence}`}>{factor.confidence}</span>
+            <strong>{factor.label}</strong>
+            <p>{factor.description}</p>
           </article>
         ))}
       </div>
-      <button className="primary-action" type="button" onClick={onContinue} disabled={!canContinue}>
-        <span>Show my starting point</span>
-        <ArrowRight size={18} aria-hidden="true" />
-      </button>
-    </section>
-  );
-}
-
-function StartingPointScreen({
-  profile,
-  onContinue,
-}: {
-  profile: RechargeProfile;
-  onContinue: () => void;
-}) {
-  return (
-    <section className="screen">
-      <span className="eyebrow">Your Recharge starting point</span>
-      <h1>{profile.goal}</h1>
-      <InfoPanel title="Recommended first focus" body={profile.recommendedFocus} />
-
-      <div className="soft-panel">
-        <span className="panel-label">Likely modifiable contributors</span>
-        <div className="factor-list">
-          {profile.contributors.map((factor) => (
-            <article key={factor.id}>
-              <strong>{factor.label}</strong>
-              <p>{factor.description}</p>
-            </article>
-          ))}
-        </div>
-      </div>
 
       <button className="primary-action" type="button" onClick={onContinue}>
-        <span>Build my 7-day plan</span>
+        <span>{needsInformation ? "Answer one useful question" : "Show first experiment"}</span>
         <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
   );
 }
 
-function PlanScreen({
-  plan,
-  onContinue,
+function MissingInformationScreen({
+  prompt,
+  reason,
+  options,
+  onAnswer,
 }: {
-  plan: RechargePlan;
-  onContinue: () => void;
+  prompt: string;
+  reason: string;
+  options: string[];
+  onAnswer: (answer: string) => void;
 }) {
   return (
     <section className="screen">
-      <span className="eyebrow">Your first Recharge</span>
-      <h1>{plan.goal}</h1>
-      <p className="lead">
-        This week is a set of small experiments. Recharge will surface one action at a time.
+      <span className="eyebrow">One thing before we start</span>
+      <h1>{prompt}</h1>
+      <p className="lead">{reason}</p>
+      <div className="option-grid decision-grid">
+        {options.map((option) => (
+          <button className="option" key={option} type="button" onClick={() => onAnswer(option)}>
+            {option}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ExperimentScreen({
+  analysis,
+  decision,
+  activeExperiment,
+  onStart,
+}: {
+  analysis: ProblemAnalysis;
+  decision: ExperimentDecision;
+  activeExperiment: ActiveExperiment;
+  onStart: () => void;
+}) {
+  const { experiment } = decision;
+
+  return (
+    <section className="screen">
+      <span className="eyebrow">Let&apos;s start here</span>
+      <div className="experiment-hero">
+        <div className="experiment-icon">{iconMap[experiment.icon]}</div>
+        <h1>{experiment.title}</h1>
+        <p>{experiment.userAction}</p>
+      </div>
+
+      <div className="why-card">
+        <span className="panel-label">Why this?</span>
+        <p>{decision.rationale}</p>
+      </div>
+
+      <div className="experiment-meta">
+        <article>
+          <span>Duration</span>
+          <strong>{experiment.durationDays}-day experiment</strong>
+        </article>
+        <article>
+          <span>Track</span>
+          <strong>{experiment.targetOutcome}</strong>
+        </article>
+      </div>
+
+      <ExperimentDots activeExperiment={activeExperiment} />
+
+      <p className="microcopy">
+        Recharge is testing this one thing first because your main pattern is {analysis.primaryFocus.toLowerCase()}.
       </p>
 
-      <div className="focus-row">
-        {plan.focusAreas.map((focus) => (
-          <span key={focus}>{focus}</span>
-        ))}
-      </div>
-
-      <div className="plan-list">
-        {plan.quests.slice(0, 7).map((quest) => (
-          <article key={`${quest.day}-${quest.title}`}>
-            <span>Day {quest.day}</span>
-            <strong>{quest.title}</strong>
-          </article>
-        ))}
-      </div>
-
-      <button className="primary-action" type="button" onClick={onContinue}>
-        <span>Start Day 1</span>
+      <button className="primary-action" type="button" onClick={onStart}>
+        <span>Start experiment</span>
         <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
@@ -475,38 +532,53 @@ function PlanScreen({
 function TodayShell({
   activeTab,
   onTabChange,
-  plan,
-  profile,
-  energy,
-  onEnergyChange,
-  questAccepted,
-  onAcceptQuest,
+  analysis,
+  decision,
+  activeExperiment,
+  checkIn,
+  onCheckIn,
+  onDone,
+  updateText,
+  onUpdateText,
+  onSubmitUpdate,
 }: {
   activeTab: AppTab;
   onTabChange: (tab: AppTab) => void;
-  plan: RechargePlan;
-  profile: RechargeProfile;
-  energy: string;
-  onEnergyChange: (value: string) => void;
-  questAccepted: boolean;
-  onAcceptQuest: () => void;
+  analysis: ProblemAnalysis;
+  decision: ExperimentDecision;
+  activeExperiment: ActiveExperiment;
+  checkIn: string;
+  onCheckIn: (value: string) => void;
+  onDone: () => void;
+  updateText: string;
+  onUpdateText: (value: string) => void;
+  onSubmitUpdate: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
     <section className="screen app-view">
       {activeTab === "today" && (
         <TodayScreen
-          plan={plan}
-          energy={energy}
-          onEnergyChange={onEnergyChange}
-          questAccepted={questAccepted}
-          onAcceptQuest={onAcceptQuest}
+          analysis={analysis}
+          decision={decision}
+          activeExperiment={activeExperiment}
+          checkIn={checkIn}
+          onCheckIn={onCheckIn}
+          onDone={onDone}
         />
       )}
-      {activeTab === "journey" && <JourneyScreen plan={plan} profile={profile} />}
-      {activeTab === "coach" && <CoachScreen profile={profile} />}
+      {activeTab === "journey" && (
+        <JourneyScreen analysis={analysis} decision={decision} activeExperiment={activeExperiment} />
+      )}
+      {activeTab === "update" && (
+        <UpdateScreen
+          updateText={updateText}
+          onUpdateText={onUpdateText}
+          onSubmitUpdate={onSubmitUpdate}
+        />
+      )}
 
       <nav className="bottom-nav" aria-label="Primary destinations">
-        {(["today", "journey", "coach"] as AppTab[]).map((tab) => (
+        {(["today", "journey", "update"] as AppTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -515,8 +587,8 @@ function TodayShell({
           >
             {tab === "today" && <Home size={17} aria-hidden="true" />}
             {tab === "journey" && <Route size={17} aria-hidden="true" />}
-            {tab === "coach" && <MessageCircle size={17} aria-hidden="true" />}
-            <span>{tab[0].toUpperCase() + tab.slice(1)}</span>
+            {tab === "update" && <MessageCircle size={17} aria-hidden="true" />}
+            <span>{tab === "update" ? "Update" : tab[0].toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
       </nav>
@@ -525,33 +597,56 @@ function TodayShell({
 }
 
 function TodayScreen({
-  plan,
-  energy,
-  onEnergyChange,
-  questAccepted,
-  onAcceptQuest,
+  analysis,
+  decision,
+  activeExperiment,
+  checkIn,
+  onCheckIn,
+  onDone,
 }: {
-  plan: RechargePlan;
-  energy: string;
-  onEnergyChange: (value: string) => void;
-  questAccepted: boolean;
-  onAcceptQuest: () => void;
+  analysis: ProblemAnalysis;
+  decision: ExperimentDecision;
+  activeExperiment: ActiveExperiment;
+  checkIn: string;
+  onCheckIn: (value: string) => void;
+  onDone: () => void;
 }) {
-  const quest = plan.quests[0];
+  const { experiment } = decision;
+  const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
 
   return (
     <>
       <span className="eyebrow">Today</span>
-      <h1>Good morning</h1>
+      <h1>Today&apos;s experiment</h1>
+
+      <section className="quest-card experiment-today-card">
+        <div className="experiment-title-row">
+          <div className="experiment-icon small">{iconMap[experiment.icon]}</div>
+          <div>
+            <span className="panel-label">{analysis.primaryFocus}</span>
+            <h2>{experiment.title}</h2>
+          </div>
+        </div>
+        <p>{experiment.userAction}</p>
+        <strong className="day-label">
+          Day {activeExperiment.currentDay} of {experiment.durationDays}
+        </strong>
+        <ExperimentDots activeExperiment={activeExperiment} />
+        <button className="primary-action" type="button" onClick={onDone}>
+          {completedToday && <Check size={18} aria-hidden="true" />}
+          <span>{completedToday ? "Done for today" : "Done"}</span>
+        </button>
+      </section>
+
       <section className="checkin-card">
-        <span className="panel-label">Energy check-in</span>
+        <span className="panel-label">How&apos;s your {experiment.targetOutcome.toLowerCase()}?</span>
         <div className="energy-options">
-          {["Low", "Steady", "Clear"].map((option) => (
+          {["Rough", "Same", "Better", "Much better"].map((option) => (
             <button
               key={option}
               type="button"
-              className={energy === option ? "selected option" : "option"}
-              onClick={() => onEnergyChange(option)}
+              className={checkIn === option ? "selected option" : "option"}
+              onClick={() => onCheckIn(option)}
             >
               {option}
             </button>
@@ -559,84 +654,110 @@ function TodayScreen({
         </div>
       </section>
 
-      <section className="quest-card">
-        <span className="panel-label">Today&apos;s quest</span>
-        <h2>{quest.title}</h2>
-        <p>{quest.explanation}</p>
-        <button className="primary-action" type="button" onClick={onAcceptQuest}>
-          {questAccepted && <Check size={18} aria-hidden="true" />}
-          <span>{questAccepted ? "Added for today" : "I\u0027m in"}</span>
-        </button>
-      </section>
-
-      <div className="week-progress" aria-label="Seven day progress">
-        {plan.quests.map((questItem) => (
-          <span
-            key={questItem.day}
-            className={questItem.day === 1 && questAccepted ? "complete" : ""}
-          >
-            {questItem.day}
-          </span>
-        ))}
-      </div>
-
-      <div className="coach-entry">
-        <span className="panel-label">Ask Recharge Coach</span>
-        <button type="button">What should I do after a poor night?</button>
-        <button type="button">How do I keep caffeine without hurting sleep?</button>
+      <div className="why-card">
+        <span className="panel-label">Why we&apos;re testing this</span>
+        <p>{experiment.explanation}</p>
       </div>
     </>
   );
 }
 
 function JourneyScreen({
-  plan,
-  profile,
+  analysis,
+  decision,
+  activeExperiment,
 }: {
-  plan: RechargePlan;
-  profile: RechargeProfile;
+  analysis: ProblemAnalysis;
+  decision: ExperimentDecision;
+  activeExperiment: ActiveExperiment;
+}) {
+  const { experiment, learnedSignals } = decision;
+
+  return (
+    <>
+      <span className="eyebrow">Your Journey</span>
+      <h1>What Recharge is learning.</h1>
+
+      <section className="soft-panel">
+        <span className="panel-label">Testing now</span>
+        <div className="learning-row">
+          <strong>{experiment.title}</strong>
+          <span>
+            Day {activeExperiment.currentDay} of {experiment.durationDays}
+          </span>
+        </div>
+        <ExperimentDots activeExperiment={activeExperiment} />
+      </section>
+
+      <section className="soft-panel">
+        <span className="panel-label">What seems to help</span>
+        {learnedSignals.map((signal) => (
+          <article className="signal-row" key={signal.id}>
+            <strong>{signal.label}</strong>
+            <span>{signal.direction === "unclear" ? "Signal pending" : "Positive signal"}</span>
+            <p>{signal.evidence}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="soft-panel">
+        <span className="panel-label">What we&apos;ve learned</span>
+        <div className="factor-list">
+          {analysis.factors.map((factor) => (
+            <article key={factor.id}>
+              <strong>{factor.label}</strong>
+              <p>{factor.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function UpdateScreen({
+  updateText,
+  onUpdateText,
+  onSubmitUpdate,
+}: {
+  updateText: string;
+  onUpdateText: (value: string) => void;
+  onSubmitUpdate: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
     <>
-      <span className="eyebrow">Journey</span>
-      <h1>{profile.goal}</h1>
-      <p className="lead">{profile.recommendedFocus}</p>
-      <div className="plan-list expanded">
-        {plan.quests.map((quest) => (
-          <article key={`${quest.day}-${quest.title}`}>
-            <span>Day {quest.day}</span>
-            <strong>{quest.title}</strong>
-            <p>{quest.action}</p>
-          </article>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function CoachScreen({ profile }: { profile: RechargeProfile }) {
-  return (
-    <>
-      <span className="eyebrow">Coach</span>
-      <h1>A calm place to adjust the plan.</h1>
+      <span className="eyebrow">Something else going on?</span>
+      <h1>Tell Recharge what changed.</h1>
       <p className="lead">
-        Future AI support will select from approved interventions and personalize them
-        around your goal: {profile.goal.toLowerCase()}.
+        This is not an open-ended chat. Recharge uses updates to adjust the next experiment.
       </p>
-      <div className="coach-entry full">
-        <button type="button">I had a bad night. What should change today?</button>
-        <button type="button">Can you make tomorrow easier?</button>
-        <button type="button">What pattern should I watch this week?</button>
-      </div>
+      <form className="intake-form compact" onSubmit={onSubmitUpdate}>
+        <textarea
+          value={updateText}
+          onChange={(event) => onUpdateText(event.target.value)}
+          placeholder="Our baby was awake all night."
+          aria-label="Tell Recharge what changed"
+        />
+        <button className="primary-action" type="submit" disabled={!updateText.trim()}>
+          <span>Re-evaluate today</span>
+          <ArrowRight size={18} aria-hidden="true" />
+        </button>
+      </form>
     </>
   );
 }
 
-function InfoPanel({ title, body }: { title: string; body: string }) {
+function ExperimentDots({ activeExperiment }: { activeExperiment: ActiveExperiment }) {
   return (
-    <article className="info-panel">
-      <span className="panel-label">{title}</span>
-      <p>{body}</p>
-    </article>
+    <div className="experiment-dots" aria-label="Experiment progress">
+      {activeExperiment.adherence.map((done, index) => (
+        <span
+          key={`${activeExperiment.experimentId}-${index}`}
+          className={done ? "complete" : index + 1 === activeExperiment.currentDay ? "current" : ""}
+        >
+          {index + 1}
+        </span>
+      ))}
+    </div>
   );
 }

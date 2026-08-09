@@ -2,15 +2,16 @@
 
 Recharge is a mobile-first employee wellbeing MVP focused on sleep, recovery, and energy.
 
-The first product slice demonstrates one polished journey:
+The first product slice demonstrates one polished adaptive journey:
 
-Landing -> conversational intake -> adaptive follow-up -> personalized starting point -> seven-day plan -> Today.
+Landing -> free-text intake -> pattern extraction -> optional missing-data question -> selected experiment -> Today.
 
 ## Product Shape
 
 - No account creation before value.
 - No real AI API yet.
-- Mock scenarios live in `lib/recharge.ts`.
+- Mock behaviour-engine scenarios live in `lib/recharge.ts`.
+- Approved experiments, active experiments, check-ins, learned signals, and next-best interactions are modeled centrally.
 - UI screens live in `app/page.tsx`.
 - Design tokens and responsive styling live in `app/globals.css`.
 

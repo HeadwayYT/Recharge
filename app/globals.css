@@ -259,7 +259,10 @@ h2 {
 .soft-panel p,
 .quest-card p,
 .signal-card p,
-.plan-list p {
+.plan-list p,
+.factor-card p,
+.why-card p,
+.signal-row p {
   color: var(--text-muted);
   font-size: 16px;
   line-height: 1.6;
@@ -270,7 +273,12 @@ h2 {
 .soft-panel,
 .question-card,
 .checkin-card,
-.quest-card {
+.quest-card,
+.analysis-card,
+.factor-card,
+.why-card,
+.experiment-hero,
+.experiment-meta article {
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: var(--card-radius);
   background:
@@ -431,6 +439,9 @@ h2 {
 .option {
   flex: 1 1 42%;
   min-width: 132px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  overflow-wrap: anywhere;
 }
 
 .selected,
@@ -460,6 +471,10 @@ textarea {
   line-height: 1.5;
 }
 
+.intake-form.compact textarea {
+  min-height: 168px;
+}
+
 textarea:focus {
   border-color: rgba(94, 234, 212, 0.55);
   box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12);
@@ -469,8 +484,204 @@ textarea:focus {
 .soft-panel,
 .question-card,
 .checkin-card,
-.quest-card {
+.quest-card,
+.why-card {
   padding: 18px;
+}
+
+.analysis-screen {
+  justify-content: center;
+}
+
+.analysis-card {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+
+.analysis-card span {
+  display: block;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.2), rgba(94, 234, 212, 0.82), rgba(245, 169, 155, 0.22));
+  animation: scanPulse 1.1s ease-in-out infinite alternate;
+}
+
+.analysis-card span:nth-child(2) {
+  width: 78%;
+  animation-delay: 120ms;
+}
+
+.analysis-card span:nth-child(3) {
+  width: 56%;
+  animation-delay: 240ms;
+}
+
+.context-badge {
+  align-self: flex-start;
+  padding: 9px 12px;
+  border: 1px solid rgba(94, 234, 212, 0.22);
+  border-radius: 999px;
+  background: rgba(94, 234, 212, 0.09);
+  color: #e0fffb;
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.factor-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.factor-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.factor-card strong {
+  font-size: 20px;
+  line-height: 1.12;
+}
+
+.confidence {
+  justify-self: start;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.confidence.high {
+  background: rgba(94, 234, 212, 0.15);
+  color: var(--accent);
+}
+
+.confidence.medium {
+  background: rgba(245, 169, 155, 0.13);
+  color: #ffd8cf;
+}
+
+.confidence.low {
+  background: rgba(184, 183, 255, 0.12);
+  color: #dedcff;
+}
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.experiment-hero {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  background:
+    linear-gradient(140deg, rgba(45, 212, 191, 0.17), rgba(245, 169, 155, 0.08) 55%, rgba(184, 183, 255, 0.08)),
+    rgba(13, 19, 32, 0.94);
+}
+
+.experiment-hero h1 {
+  max-width: 10ch;
+}
+
+.experiment-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 16px;
+  background: rgba(94, 234, 212, 0.1);
+  color: var(--accent);
+}
+
+.experiment-icon.small {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.experiment-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.experiment-meta article {
+  display: grid;
+  gap: 6px;
+  min-height: 96px;
+  padding: 14px;
+}
+
+.experiment-meta span,
+.learning-row span,
+.signal-row span,
+.day-label {
+  color: var(--accent);
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.experiment-dots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.experiment-dots span {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-muted);
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.experiment-dots span.current {
+  border-color: rgba(94, 234, 212, 0.34);
+  color: var(--accent);
+}
+
+.experiment-dots span.complete {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #061313;
+}
+
+.experiment-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.experiment-today-card {
+  gap: 18px;
+}
+
+.day-label {
+  justify-self: start;
+}
+
+.learning-row,
+.signal-row {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.signal-row {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .factor-list {
@@ -759,6 +970,18 @@ textarea:focus {
   background: linear-gradient(90deg, var(--primary), var(--coral));
 }
 
+@keyframes scanPulse {
+  from {
+    opacity: 0.44;
+    transform: translateX(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -801,6 +1024,11 @@ textarea:focus {
 
   .option {
     flex-basis: 100%;
+  }
+
+  .decision-grid,
+  .experiment-meta {
+    grid-template-columns: 1fr;
   }
 
   .demo-strip {

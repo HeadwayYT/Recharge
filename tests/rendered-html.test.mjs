@@ -40,12 +40,17 @@ test("keeps AI-ready product architecture out of the UI layer", async () => {
   ]);
 
   assert.match(page, /analyzeProblem/);
+  assert.match(page, /chooseExperiment/);
   assert.match(recharge, /export type ProblemAnalysis/);
-  assert.match(recharge, /export type FollowUpQuestion/);
-  assert.match(recharge, /export type RechargeProfile/);
-  assert.match(recharge, /export type Intervention/);
-  assert.match(recharge, /export type RechargePlan/);
-  assert.match(recharge, /export type DailyQuest/);
+  assert.match(recharge, /export type MissingInformation/);
+  assert.match(recharge, /export type Experiment/);
+  assert.match(recharge, /export type ActiveExperiment/);
+  assert.match(recharge, /export type CheckIn/);
+  assert.match(recharge, /export type LearnedSignal/);
+  assert.match(recharge, /export type NextBestInteraction/);
+  assert.match(recharge, /export const experimentLibrary/);
   assert.match(recharge, /professional_evaluation/);
   assert.match(recharge, /do_not_continue_self_coaching/);
+  assert.match(recharge, /REQUEST_INFORMATION/);
+  assert.match(recharge, /START_EXPERIMENT/);
 });
