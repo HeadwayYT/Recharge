@@ -684,7 +684,7 @@ function TodayScreen({
         activeExperiment={activeExperiment}
         primaryFocus={analysis.primaryFocus}
         actionCopy={completedToday ? "Done for today" : "Done for today"}
-        onPrimaryAction={hasAdaptedContext ? undefined : onDone}
+        onPrimaryAction={hasAdaptedContext || activeExperiment.status === "completed" ? undefined : onDone}
       />
 
       <AnimatePresence>

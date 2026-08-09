@@ -509,12 +509,20 @@ export function recordExperimentStart(activeExperiment: ActiveExperiment): Activ
 
 export function recordAdherence(activeExperiment: ActiveExperiment): ActiveExperiment {
   const adherence = [...activeExperiment.adherence];
-  adherence[activeExperiment.currentDay - 1] = true;
+  const currentIndex = Math.min(Math.max(activeExperiment.currentDay - 1, 0), adherence.length - 1);
+  adherence[currentIndex] = true;
+  const completed = adherence.every(Boolean);
+  const nextIncompleteIndex = adherence.findIndex((done, index) => !done && index > currentIndex);
 
   return {
     ...activeExperiment,
+    currentDay: completed
+      ? activeExperiment.currentDay
+      : nextIncompleteIndex >= 0
+        ? nextIncompleteIndex + 1
+        : Math.min(activeExperiment.currentDay + 1, adherence.length),
     adherence,
-    status: adherence.every(Boolean) ? "completed" : "active",
+    status: completed ? "completed" : "active",
   };
 }
 
