@@ -1814,3 +1814,527 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.opening-composer {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "input input"
+    "examples action";
+  align-items: center;
+  gap: 12px 18px;
+}
+
+.opening-composer textarea {
+  grid-area: input;
+}
+
+.opening-composer .primary-action {
+  grid-area: action;
+  justify-self: end;
+}
+
+.starter-row {
+  grid-area: examples;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.starter-chip {
+  min-height: 28px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(255, 250, 244, 0.58);
+  font-size: 14px;
+  font-weight: 650;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.starter-chip:hover {
+  color: #f2dcc1;
+  transform: translateY(-1px);
+}
+
+.sentence-fragment {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sentence-fragment p {
+  color: rgba(255, 250, 244, 0.72);
+  font-size: 17px;
+}
+
+.adaptive-canvas .canvas-composer {
+  opacity: 0.72;
+}
+
+.adaptive-canvas .focus-statement span,
+.adaptive-canvas .compressed-composer span,
+.adaptive-canvas .hero-experiment span,
+.adaptive-canvas .canvas-question span {
+  display: none;
+}
+
+.satellite-signals span {
+  min-height: 34px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: none;
+  color: rgba(255, 250, 244, 0.72);
+  font-size: 13px;
+}
+
+.context-question {
+  max-width: 460px;
+}
+
+.experiment-living-module {
+  grid-area: experiment;
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 22px;
+  min-height: min(50vh, 450px);
+  padding: clamp(26px, 4vw, 48px);
+  overflow: hidden;
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 84% 16%, rgba(243, 197, 139, 0.22), transparent 30%),
+    radial-gradient(circle at 18% 80%, rgba(159, 216, 196, 0.12), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.032)),
+    rgba(255, 255, 255, 0.045);
+  box-shadow:
+    0 38px 120px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.experiment-living-module::after,
+.context-living-module::after,
+.insight-module::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.055), transparent);
+  opacity: 0.42;
+}
+
+.experiment-module-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: rgba(255, 250, 244, 0.64);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.experiment-living-module .experiment-icon {
+  border: 0;
+  background: rgba(243, 197, 139, 0.12);
+  color: #f3c58b;
+}
+
+.experiment-module-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.experiment-module-copy h2 {
+  max-width: 9ch;
+  color: #fffaf3;
+  font-size: clamp(44px, 5vw, 72px);
+  font-weight: 500;
+  line-height: 0.98;
+}
+
+.experiment-module-copy strong {
+  color: #f1d4ad;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.experiment-module-copy p {
+  max-width: 540px;
+  color: #e4d8cc;
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.5;
+}
+
+.experiment-living-module.recommended .primary-action {
+  width: min(100%, 320px);
+}
+
+.experiment-living-module.secondary {
+  min-height: 210px;
+  padding: 24px;
+  border-radius: 26px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018)),
+    rgba(12, 14, 18, 0.62);
+  box-shadow:
+    0 18px 54px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.experiment-living-module.secondary .experiment-module-copy h2 {
+  font-size: clamp(30px, 3vw, 44px);
+}
+
+.experiment-living-module.completedToday {
+  gap: 14px;
+  min-height: 360px;
+  padding-top: 30px;
+  padding-bottom: 30px;
+  background:
+    radial-gradient(circle at 84% 16%, rgba(159, 216, 196, 0.18), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.032)),
+    rgba(255, 255, 255, 0.045);
+}
+
+.experiment-living-module.completedToday .experiment-module-copy {
+  gap: 6px;
+}
+
+.experiment-living-module.completedToday .experiment-module-copy h2 {
+  font-size: clamp(36px, 3.8vw, 56px);
+}
+
+.experiment-living-module.completedToday .experiment-dots span {
+  min-height: 36px;
+}
+
+.living-app-view {
+  width: min(100%, 1180px);
+}
+
+.today-canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(380px, 1.22fr);
+  grid-template-areas:
+    "greeting experiment"
+    "context experiment"
+    "why checkin";
+  align-content: center;
+  column-gap: clamp(28px, 4vw, 70px);
+  row-gap: 22px;
+  padding-bottom: 92px;
+}
+
+.today-greeting {
+  grid-area: greeting;
+  display: grid;
+  gap: 12px;
+  align-self: end;
+}
+
+.today-greeting h1 {
+  max-width: 9ch;
+  font-size: clamp(48px, 6vw, 86px);
+}
+
+.today-canvas.context-adapting .today-greeting h1,
+.today-canvas.context-adapted .today-greeting h1 {
+  max-width: 10ch;
+  font-size: clamp(42px, 5vw, 72px);
+}
+
+.today-canvas > .experiment-living-module {
+  grid-area: experiment;
+  align-self: center;
+}
+
+.context-living-module {
+  grid-area: context;
+  position: relative;
+  display: grid;
+  gap: 12px;
+  align-self: start;
+  padding: 22px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(231, 162, 142, 0.16), transparent 28%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.078), rgba(255, 255, 255, 0.025)),
+    rgba(255, 255, 255, 0.038);
+  box-shadow: 0 24px 68px rgba(0, 0, 0, 0.24);
+}
+
+.context-living-module span,
+.insight-module span,
+.explore-next > span,
+.journey-current span {
+  color: #d4b688;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.context-living-module h2 {
+  color: #fffaf3;
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 500;
+}
+
+.context-living-module p,
+.context-living-module strong {
+  color: #d8cec3;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.context-living-module.adapting {
+  filter: saturate(1.08);
+}
+
+.daily-checkin {
+  grid-area: checkin;
+  display: grid;
+  gap: 14px;
+  align-self: start;
+  padding: 0;
+}
+
+.daily-checkin h2 {
+  max-width: 22ch;
+  color: #fffaf3;
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 500;
+}
+
+.daily-checkin .energy-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.daily-checkin .option {
+  min-width: 0;
+  border: 0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.quiet-why {
+  grid-area: why;
+  display: grid;
+  gap: 12px;
+  align-self: start;
+}
+
+.quiet-why button {
+  justify-self: start;
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3d7b5;
+  font-weight: 800;
+}
+
+.quiet-why p {
+  max-width: 360px;
+  color: rgba(255, 250, 244, 0.66);
+  line-height: 1.58;
+}
+
+.journey-canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
+  grid-template-areas:
+    "heading current"
+    "insight current"
+    "explore explore";
+  align-content: center;
+  column-gap: clamp(28px, 4vw, 64px);
+  row-gap: 24px;
+  padding-bottom: 100px;
+}
+
+.journey-heading {
+  grid-area: heading;
+  display: grid;
+  gap: 12px;
+}
+
+.journey-heading h1 {
+  max-width: 10ch;
+  font-size: clamp(42px, 5vw, 72px);
+}
+
+.journey-current {
+  grid-area: current;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  min-height: min(46vh, 420px);
+  padding: clamp(24px, 4vw, 44px);
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 84% 16%, rgba(243, 197, 139, 0.16), transparent 28%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.024)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: 0 34px 100px rgba(0, 0, 0, 0.28);
+}
+
+.journey-current h2 {
+  margin: 8px 0;
+  color: #fffaf3;
+  font-size: clamp(36px, 4vw, 58px);
+  font-weight: 500;
+}
+
+.journey-current p,
+.insight-module p {
+  color: #d8cec3;
+  font-size: 17px;
+  line-height: 1.58;
+}
+
+.insight-module {
+  grid-area: insight;
+  position: relative;
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+  padding: 0;
+}
+
+.explore-next {
+  grid-area: explore;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.explore-next div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.explore-next button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 250, 244, 0.76);
+  font-weight: 800;
+}
+
+.update-canvas {
+  justify-content: center;
+  width: min(100%, 940px);
+  padding-bottom: 104px;
+}
+
+.update-canvas h1 {
+  max-width: 9ch;
+  font-size: clamp(54px, 6.6vw, 88px);
+}
+
+.update-canvas .lead {
+  max-width: 620px;
+  color: #c8c0b8;
+  font-size: 20px;
+}
+
+.update-composer {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 780px);
+}
+
+.update-composer textarea {
+  min-height: 168px;
+  resize: none;
+  border: 0;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.045);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.update-composer .primary-action {
+  justify-self: end;
+  width: min(100%, 240px);
+}
+
+@media (max-width: 980px) {
+  .opening-composer {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "input"
+      "action"
+      "examples";
+  }
+
+  .opening-composer .primary-action {
+    justify-self: stretch;
+  }
+
+  .today-canvas,
+  .journey-canvas {
+    display: flex;
+    align-content: start;
+  }
+
+  .living-app-view {
+    width: min(100%, 760px);
+  }
+
+  .experiment-living-module,
+  .journey-current {
+    min-height: 340px;
+  }
+
+  .daily-checkin .energy-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 440px) {
+  .starter-row {
+    gap: 6px 12px;
+  }
+
+  .starter-chip {
+    font-size: 13px;
+  }
+
+  .experiment-module-copy h2,
+  .journey-current h2 {
+    font-size: 42px;
+  }
+
+  .today-greeting h1,
+  .journey-heading h1,
+  .update-canvas h1 {
+    font-size: 42px;
+  }
+
+  .experiment-living-module,
+  .journey-current,
+  .context-living-module {
+    border-radius: 26px;
+    padding: 24px;
+  }
+
+  .explore-next {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .update-composer .primary-action {
+    justify-self: stretch;
+    width: 100%;
+  }
+}

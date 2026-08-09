@@ -39,10 +39,29 @@ import {
   signalVariants,
 } from "./recharge-choreography";
 
-type FlowStep = "landing" | "intake" | "analyzing" | "result" | "missing-info" | "experiment" | "today";
+type FlowStep = "landing" | "assembling" | "recommendation" | "today";
 type AppTab = "today" | "journey" | "update";
+type TodayContextStatus = "none" | "adapting" | "adapted";
 
-const quickStarts = ["Always tired", "Can't switch off", "Irregular schedule", "Broken nights"];
+type TodayContext = {
+  status: TodayContextStatus;
+  text: string;
+  label: string;
+  title: string;
+  message: string;
+  action: string;
+};
+
+const quickStarts = ["For example: always tired", "For example: can't switch off", "For example: irregular schedule", "For example: broken nights"];
+
+const emptyTodayContext: TodayContext = {
+  status: "none",
+  text: "",
+  label: "",
+  title: "",
+  message: "",
+  action: "",
+};
 
 const iconMap: Record<Experiment["icon"], React.ReactNode> = {
   sun: <SunMedium size={22} aria-hidden="true" />,
@@ -53,6 +72,10 @@ const iconMap: Record<Experiment["icon"], React.ReactNode> = {
   heart: <Sparkles size={22} aria-hidden="true" />,
   steps: <RouteIcon size={22} aria-hidden="true" />,
 };
+
+function cleanStarter(starter: string) {
+  return starter.replace("For example: ", "");
+}
 
 function getVisibleSignals(problemText: string, analysis?: ProblemAnalysis) {
   const lower = problemText.toLowerCase();
@@ -71,6 +94,33 @@ function getVisibleSignals(problemText: string, analysis?: ProblemAnalysis) {
   return Array.from(new Set([...signals, ...factorSignals])).slice(0, 4);
 }
 
+function createTodayContext(update: string): TodayContext {
+  const lower = update.toLowerCase();
+  const brokenNight = ["baby", "awake", "all night", "broken", "child", "toddler", "interrupted"].some((term) =>
+    lower.includes(term),
+  );
+
+  if (brokenNight) {
+    return {
+      status: "adapting",
+      text: update,
+      label: "Broken night",
+      title: "Recovery Day",
+      message: "Today does not need to be perfect.",
+      action: "Take a 12-minute outside reset or quiet walk before midday.",
+    };
+  }
+
+  return {
+    status: "adapting",
+    text: update,
+    label: "Changed context",
+    title: "Lighter Day",
+    message: "Recharge is adjusting the expectation around what is happening.",
+    action: "Keep the smallest useful version of today's experiment.",
+  };
+}
+
 export default function Home() {
   const [step, setStep] = useState<FlowStep>("landing");
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -81,8 +131,14 @@ export default function Home() {
   const [activeExperiment, setActiveExperiment] = useState<ActiveExperiment | null>(null);
   const [checkIn, setCheckIn] = useState("");
   const [updateText, setUpdateText] = useState("");
+  const [todayContext, setTodayContext] = useState<TodayContext>(emptyTodayContext);
 
   const missingInformation = analysis ? getMissingInformation(analysis) : null;
+  const pendingMissingInformation =
+    missingInformation && answers[missingInformation.id] == null ? missingInformation : null;
+  const previewDecision = analysis ? chooseExperiment(analysis, answers) : null;
+  const adherenceKey = activeExperiment?.adherence.map((done) => (done ? "1" : "0")).join("") ?? "";
+  const answerKey = Object.values(answers).join("|");
 
   useEffect(() => {
     const resetScroll = () => {
@@ -94,7 +150,7 @@ export default function Home() {
 
     resetScroll();
     window.setTimeout(resetScroll, 0);
-  }, [step, activeTab]);
+  }, [step, activeTab, answerKey, adherenceKey, todayContext.status]);
 
   function submitProblem(event?: FormEvent<HTMLFormElement>, explicitText?: string) {
     event?.preventDefault();
@@ -108,34 +164,23 @@ export default function Home() {
     setDecision(null);
     setActiveExperiment(null);
     setCheckIn("");
+    setTodayContext(emptyTodayContext);
     setActiveTab("today");
-    setStep("analyzing");
-    window.setTimeout(() => setStep("result"), 720);
-  }
-
-  function chooseFirstExperiment(nextAnswers: Record<string, string>) {
-    if (!analysis) return;
-    const nextDecision = chooseExperiment(analysis, nextAnswers);
-    setDecision(nextDecision);
-    setActiveExperiment(createActiveExperiment(nextDecision.experiment));
-    setStep("experiment");
-  }
-
-  function continueFromResult() {
-    if (!analysis) return;
-    chooseFirstExperiment(answers);
+    setStep("assembling");
+    window.setTimeout(() => setStep("recommendation"), 860);
   }
 
   function answerMissingInformation(value: string) {
     if (!missingInformation) return;
-    const nextAnswers = { ...answers, [missingInformation.id]: value };
-    setAnswers(nextAnswers);
-    chooseFirstExperiment(nextAnswers);
+    setAnswers((current) => ({ ...current, [missingInformation.id]: value }));
   }
 
-  function startExperiment() {
-    if (!activeExperiment) return;
-    setActiveExperiment(recordExperimentStart(activeExperiment));
+  function startRecommendedExperiment() {
+    if (!analysis) return;
+    const nextDecision = chooseExperiment(analysis, answers);
+    const startedExperiment = recordExperimentStart(createActiveExperiment(nextDecision.experiment));
+    setDecision(nextDecision);
+    setActiveExperiment(startedExperiment);
     setActiveTab("today");
     setStep("today");
   }
@@ -159,13 +204,23 @@ export default function Home() {
     setActiveExperiment(null);
     setCheckIn("");
     setUpdateText("");
+    setTodayContext(emptyTodayContext);
     setActiveTab("today");
     setStep("landing");
   }
 
   function submitUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    submitProblem(undefined, updateText);
+    const text = updateText.trim();
+    if (!text) return;
+
+    const context = createTodayContext(text);
+    setTodayContext(context);
+    setUpdateText("");
+    setActiveTab("today");
+    window.setTimeout(() => {
+      setTodayContext({ ...context, status: "adapted" });
+    }, 980);
   }
 
   return (
@@ -192,36 +247,18 @@ export default function Home() {
                 onSubmit={submitProblem}
               />
             )}
-            {step === "intake" && (
-              <LandingScreen
-                key="intake"
-                problemText={problemText}
-                onChange={setProblemText}
-                onSubmit={submitProblem}
-              />
+            {step === "assembling" && analysis && (
+              <AssemblingScreen key="assembling" analysis={analysis} problemText={problemText} />
             )}
-            {step === "analyzing" && analysis && (
-              <AnalyzingScreen key="analyzing" analysis={analysis} problemText={problemText} />
-            )}
-            {step === "result" && analysis && (
-              <ResultScreen
-                key="result"
+            {step === "recommendation" && analysis && previewDecision && (
+              <RecommendationCanvas
+                key="recommendation"
                 analysis={analysis}
                 problemText={problemText}
-                previewDecision={chooseExperiment(analysis, answers)}
-                missingInformation={missingInformation}
+                previewDecision={previewDecision}
+                missingInformation={pendingMissingInformation}
                 onAnswer={answerMissingInformation}
-                onContinue={continueFromResult}
-              />
-            )}
-            {step === "experiment" && analysis && decision && activeExperiment && (
-              <ExperimentScreen
-                key="experiment"
-                analysis={analysis}
-                problemText={problemText}
-                decision={decision}
-                activeExperiment={activeExperiment}
-                onStart={startExperiment}
+                onStart={startRecommendedExperiment}
               />
             )}
             {step === "today" && analysis && decision && activeExperiment && (
@@ -233,6 +270,7 @@ export default function Home() {
                 decision={decision}
                 activeExperiment={activeExperiment}
                 checkIn={checkIn}
+                todayContext={todayContext}
                 onCheckIn={recordMorningCheckIn}
                 onDone={markDone}
                 updateText={updateText}
@@ -268,9 +306,7 @@ function LandingScreen({
     >
       <div className="opening-copy">
         <h1>What&apos;s been draining your energy lately?</h1>
-        <p>
-          Tell me what&apos;s been going on. You don&apos;t need to know what the problem is yet.
-        </p>
+        <p>Tell me what&apos;s been going on. You don&apos;t need to know what the problem is yet.</p>
       </div>
 
       <motion.form
@@ -287,14 +323,9 @@ function LandingScreen({
           placeholder="I've been waking up exhausted even when I sleep enough..."
           aria-label="Tell Recharge what has been draining your energy"
         />
-        <div className="chip-row">
+        <div className="starter-row" aria-label="Examples">
           {quickStarts.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              className="chip"
-              onClick={() => onChange(chip)}
-            >
+            <button key={chip} type="button" className="starter-chip" onClick={() => onChange(cleanStarter(chip))}>
               {chip}
             </button>
           ))}
@@ -308,7 +339,7 @@ function LandingScreen({
   );
 }
 
-function AnalyzingScreen({
+function AssemblingScreen({
   analysis,
   problemText,
 }: {
@@ -329,19 +360,18 @@ function AnalyzingScreen({
       exit="exit"
     >
       <motion.div
-        className="compressed-composer"
+        className="compressed-composer sentence-fragment"
         layout
         layoutId="recharge-composer"
         transition={layoutTransition}
         variants={composerVariants}
       >
-        <span>Your words</span>
         <p>{problemText}</p>
       </motion.div>
 
       <motion.div
         className="signal-lift"
-        aria-label="Signals Recharge noticed"
+        aria-label="Relevant signals"
         variants={signalGroupVariants}
         initial="initial"
         animate="animate"
@@ -354,32 +384,34 @@ function AnalyzingScreen({
         ))}
       </motion.div>
 
-      <h1>Finding the first useful move.</h1>
+      <motion.h1 layout variants={moduleVariants} custom={0.18}>
+        Finding the first useful shape.
+      </motion.h1>
     </motion.section>
   );
 }
 
-function ResultScreen({
+function RecommendationCanvas({
   analysis,
   problemText,
   previewDecision,
   missingInformation,
   onAnswer,
-  onContinue,
+  onStart,
 }: {
   analysis: ProblemAnalysis;
   problemText: string;
   previewDecision: ExperimentDecision;
   missingInformation: MissingInformation | null;
   onAnswer: (answer: string) => void;
-  onContinue: () => void;
+  onStart: () => void;
 }) {
   const signals = getVisibleSignals(problemText, analysis).filter((signal) => signal !== analysis.primaryFocus);
   const { experiment } = previewDecision;
 
   return (
     <motion.section
-      className="screen personal-canvas"
+      className="screen personal-canvas adaptive-canvas"
       layout
       transition={layoutTransition}
       variants={screenVariants}
@@ -388,190 +420,136 @@ function ResultScreen({
       exit="exit"
     >
       <motion.div
-        className="compressed-composer canvas-composer"
+        className="compressed-composer canvas-composer sentence-fragment"
         layout
         layoutId="recharge-composer"
         transition={layoutTransition}
         variants={composerVariants}
       >
-        <span>Your words</span>
         <p>{problemText}</p>
       </motion.div>
 
-      <motion.div
-        className="focus-statement assembly-module"
-        layout
-        variants={moduleVariants}
-        custom={0.08}
-      >
-        <span>Recharge noticed</span>
+      <motion.div className="focus-statement assembly-module" layout variants={moduleVariants} custom={0.08}>
         <h1>Let&apos;s start with your {analysis.primaryFocus.toLowerCase()}.</h1>
         <p>{analysis.summary}</p>
       </motion.div>
 
       <motion.div
-        className="supporting-signals"
-        aria-label="Related signals"
+        className="supporting-signals satellite-signals"
+        aria-label="Secondary signals"
         variants={signalGroupVariants}
         initial="initial"
         animate="animate"
         exit="exit"
       >
         {signals.slice(0, 3).map((signal) => (
-          <motion.span
-            className="assembly-module"
-            key={signal}
-            layout
-            variants={signalVariants}
-          >
+          <motion.span className="assembly-module" key={signal} layout variants={signalVariants}>
             {signal}
           </motion.span>
         ))}
       </motion.div>
 
-      <motion.article
-        className="hero-experiment assembly-module"
-        layout
-        layoutId="primary-experiment"
-        variants={moduleVariants}
-        custom={0.34}
-      >
-        <div className="experiment-icon">{iconMap[experiment.icon]}</div>
-        <div>
-          <span>Start here</span>
-          <h2>{experiment.title}</h2>
-          <p>{experiment.userAction}</p>
-          <small>
-            {experiment.durationDays} days - about {experiment.id === "morning_light_reset" ? "10" : experiment.id === "evening_brain_dump" ? "6" : "5-15"} min/day
-          </small>
-        </div>
+      <ExperimentModule
+        mode="recommended"
+        experiment={experiment}
+        activeExperiment={null}
+        primaryFocus={analysis.primaryFocus}
+        actionCopy="Start experiment"
+        onPrimaryAction={onStart}
+      />
 
-        {!missingInformation && (
-          <button className="primary-action" type="button" onClick={onContinue}>
-            <span>Start my experiment</span>
-            <ArrowRight size={18} aria-hidden="true" />
-          </button>
+      <AnimatePresence>
+        {missingInformation && (
+          <ContextQuestion key={missingInformation.id} missingInformation={missingInformation} onAnswer={onAnswer} />
         )}
-      </motion.article>
-
-      {missingInformation && (
-        <motion.section
-          className="canvas-question assembly-module"
-          layout
-          variants={moduleVariants}
-          custom={0.48}
-        >
-          <span>One quick thing</span>
-          <h2>{missingInformation.prompt}</h2>
-          <div className="canvas-options">
-            {missingInformation.options.map((option) => (
-              <button key={option} type="button" onClick={() => onAnswer(option)}>
-                {option}
-              </button>
-            ))}
-          </div>
-        </motion.section>
-      )}
+      </AnimatePresence>
     </motion.section>
   );
 }
 
-function ExperimentScreen({
-  analysis,
-  problemText,
-  decision,
-  activeExperiment,
-  onStart,
+function ContextQuestion({
+  missingInformation,
+  onAnswer,
 }: {
-  analysis: ProblemAnalysis;
-  problemText: string;
-  decision: ExperimentDecision;
-  activeExperiment: ActiveExperiment;
-  onStart: () => void;
+  missingInformation: MissingInformation;
+  onAnswer: (answer: string) => void;
 }) {
-  const { experiment } = decision;
-
   return (
     <motion.section
-      className="screen assembled-screen"
+      className="canvas-question context-question assembly-module"
       layout
-      transition={layoutTransition}
-      variants={screenVariants}
+      variants={moduleVariants}
+      custom={0.48}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <AssemblySummary analysis={analysis} problemText={problemText} status="Your first step" />
-      <motion.div
-        className="experiment-hero assembly-module hero-assembly"
-        layout
-        layoutId="primary-experiment"
-        variants={moduleVariants}
-        custom={0.08}
-      >
-        <span className="eyebrow">Start here</span>
-        <div className="experiment-icon">{iconMap[experiment.icon]}</div>
-        <h1>{experiment.title}</h1>
-        <p>{experiment.userAction}</p>
-      </motion.div>
-
-      <motion.div className="why-card assembly-module" layout variants={moduleVariants} custom={0.18}>
-        <span className="panel-label">Why this helps</span>
-        <p>{decision.rationale}</p>
-      </motion.div>
-
-      <motion.div className="experiment-meta assembly-module" layout variants={moduleVariants} custom={0.26}>
-        <article>
-          <span>Duration</span>
-          <strong>{experiment.durationDays}-day experiment</strong>
-        </article>
-        <article>
-          <span>Track</span>
-          <strong>{experiment.targetOutcome}</strong>
-        </article>
-      </motion.div>
-
-      <motion.div className="assembly-module" layout variants={moduleVariants} custom={0.34}>
-        <ExperimentDots activeExperiment={activeExperiment} />
-      </motion.div>
-
-      <p className="microcopy">
-        This is intentionally small: one change, three days, then Recharge can learn from what happens.
-      </p>
-
-      <button className="primary-action" type="button" onClick={onStart}>
-        <span>Start my experiment</span>
-        <ArrowRight size={18} aria-hidden="true" />
-      </button>
+      <h2>{missingInformation.prompt}</h2>
+      <div className="canvas-options">
+        {missingInformation.options.map((option) => (
+          <button key={option} type="button" onClick={() => onAnswer(option)}>
+            {option}
+          </button>
+        ))}
+      </div>
     </motion.section>
   );
 }
 
-function AssemblySummary({
-  analysis,
-  problemText,
-  status,
+function ExperimentModule({
+  mode,
+  experiment,
+  activeExperiment,
+  primaryFocus,
+  actionCopy,
+  onPrimaryAction,
 }: {
-  analysis: ProblemAnalysis;
-  problemText: string;
-  status: string;
+  mode: "recommended" | "active" | "completedToday" | "secondary";
+  experiment: Experiment;
+  activeExperiment: ActiveExperiment | null;
+  primaryFocus: string;
+  actionCopy?: string;
+  onPrimaryAction?: () => void;
 }) {
-  const compactText = problemText.length > 92 ? `${problemText.slice(0, 89)}...` : problemText;
+  const completedToday = activeExperiment?.adherence[(activeExperiment.currentDay ?? 1) - 1] ?? false;
+  const dayText = activeExperiment
+    ? `Day ${activeExperiment.currentDay} of ${experiment.durationDays}`
+    : `${experiment.durationDays} days`;
+  const stateCopy =
+    mode === "recommended"
+      ? "Let's test your morning rhythm first."
+      : mode === "completedToday"
+        ? `Day ${activeExperiment?.currentDay ?? 1} complete.`
+        : mode === "secondary"
+          ? "Still running, just lighter today."
+          : experiment.userAction;
 
   return (
-    <motion.section
-      className="assembly-summary"
-      aria-label="Compact Recharge summary"
+    <motion.article
+      className={`experiment-living-module ${mode}`}
       layout
+      layoutId="primary-experiment"
       variants={moduleVariants}
-      custom={0}
+      custom={0.28}
     >
-      <div>
-        <span className="panel-label">{status}</span>
-        <strong>{analysis.primaryFocus}</strong>
+      <div className="experiment-module-top">
+        <div className="experiment-icon">{iconMap[experiment.icon]}</div>
+        <span>{primaryFocus}</span>
       </div>
-      <p>{compactText}</p>
-    </motion.section>
+      <div className="experiment-module-copy">
+        <h2>{experiment.title}</h2>
+        <strong>{dayText}</strong>
+        <p>{stateCopy}</p>
+      </div>
+      {activeExperiment && <ExperimentDots activeExperiment={activeExperiment} />}
+      {onPrimaryAction && (
+        <button className="primary-action" type="button" onClick={onPrimaryAction}>
+          {completedToday && <Check size={18} aria-hidden="true" />}
+          <span>{actionCopy}</span>
+          {!completedToday && <ArrowRight size={18} aria-hidden="true" />}
+        </button>
+      )}
+    </motion.article>
   );
 }
 
@@ -582,6 +560,7 @@ function TodayShell({
   decision,
   activeExperiment,
   checkIn,
+  todayContext,
   onCheckIn,
   onDone,
   updateText,
@@ -594,6 +573,7 @@ function TodayShell({
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
   checkIn: string;
+  todayContext: TodayContext;
   onCheckIn: (value: string) => void;
   onDone: () => void;
   updateText: string;
@@ -602,7 +582,7 @@ function TodayShell({
 }) {
   return (
     <motion.section
-      className="screen app-view"
+      className="screen app-view living-app-view"
       layout
       transition={layoutTransition}
       variants={screenVariants}
@@ -618,6 +598,7 @@ function TodayShell({
             decision={decision}
             activeExperiment={activeExperiment}
             checkIn={checkIn}
+            todayContext={todayContext}
             onCheckIn={onCheckIn}
             onDone={onDone}
           />
@@ -628,6 +609,8 @@ function TodayShell({
             analysis={analysis}
             decision={decision}
             activeExperiment={activeExperiment}
+            checkIn={checkIn}
+            todayContext={todayContext}
           />
         )}
         {activeTab === "update" && (
@@ -671,6 +654,7 @@ function TodayScreen({
   decision,
   activeExperiment,
   checkIn,
+  todayContext,
   onCheckIn,
   onDone,
 }: {
@@ -678,64 +662,123 @@ function TodayScreen({
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
   checkIn: string;
+  todayContext: TodayContext;
   onCheckIn: (value: string) => void;
   onDone: () => void;
 }) {
   const { experiment } = decision;
   const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
+  const [whyOpen, setWhyOpen] = useState(false);
+  const hasAdaptedContext = todayContext.status !== "none";
 
   return (
     <motion.div
-      className="tab-panel"
+      className={`tab-panel today-canvas ${hasAdaptedContext ? `context-${todayContext.status}` : ""}`}
       layout
       variants={screenVariants}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <span className="eyebrow">Today</span>
-      <h1>Today&apos;s experiment</h1>
+      <motion.div className="today-greeting" layout variants={moduleVariants} custom={0}>
+        <span className="eyebrow">{hasAdaptedContext ? todayContext.label : "Today"}</span>
+        <h1>{hasAdaptedContext ? "Today changed shape." : "Good morning."}</h1>
+      </motion.div>
 
-      <section className="quest-card experiment-today-card">
-        <div className="experiment-title-row">
-          <div className="experiment-icon small">{iconMap[experiment.icon]}</div>
-          <div>
-            <span className="panel-label">{analysis.primaryFocus}</span>
-            <h2>{experiment.title}</h2>
-          </div>
-        </div>
-        <p>{experiment.userAction}</p>
-        <strong className="day-label">
-          Day {activeExperiment.currentDay} of {experiment.durationDays}
-        </strong>
-        <ExperimentDots activeExperiment={activeExperiment} />
-        <button className="primary-action" type="button" onClick={onDone}>
-          {completedToday && <Check size={18} aria-hidden="true" />}
-          <span>{completedToday ? "Done for today" : "Done"}</span>
+      <AnimatePresence mode="popLayout">
+        {hasAdaptedContext && (
+          <motion.article
+            key="adapted-context"
+            className={`context-living-module ${todayContext.status}`}
+            layout
+            layoutId="today-context"
+            variants={moduleVariants}
+            custom={0.08}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <span>{todayContext.text}</span>
+            <h2>{todayContext.status === "adapting" ? todayContext.label : todayContext.title}</h2>
+            <p>{todayContext.status === "adapting" ? "Rebuilding today around what happened." : todayContext.message}</p>
+            <strong>{todayContext.status === "adapted" ? todayContext.action : "Morning Reset is shifting into the background."}</strong>
+          </motion.article>
+        )}
+      </AnimatePresence>
+
+      <ExperimentModule
+        mode={hasAdaptedContext ? "secondary" : completedToday ? "completedToday" : "active"}
+        experiment={experiment}
+        activeExperiment={activeExperiment}
+        primaryFocus={analysis.primaryFocus}
+        actionCopy={completedToday ? "Done for today" : "Done for today"}
+        onPrimaryAction={onDone}
+      />
+
+      <AnimatePresence>
+        {completedToday && !hasAdaptedContext && (
+          <DailyCheckIn key="daily-checkin" checkIn={checkIn} metric={experiment.targetOutcome} onCheckIn={onCheckIn} />
+        )}
+      </AnimatePresence>
+
+      <motion.div className="quiet-why" layout variants={moduleVariants} custom={0.18}>
+        <button type="button" onClick={() => setWhyOpen((open) => !open)}>
+          Why this?
         </button>
-      </section>
-
-      <section className="checkin-card">
-        <span className="panel-label">How&apos;s your {experiment.targetOutcome.toLowerCase()}?</span>
-        <div className="energy-options">
-          {["Rough", "Same", "Better", "Much better"].map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={checkIn === option ? "selected option" : "option"}
-              onClick={() => onCheckIn(option)}
+        <AnimatePresence>
+          {whyOpen && (
+            <motion.p
+              key="why-copy"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
             >
-              {option}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <div className="why-card">
-        <span className="panel-label">Why we&apos;re testing this</span>
-        <p>{experiment.explanation}</p>
-      </div>
+              {hasAdaptedContext ? todayContext.action : experiment.explanation}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </motion.div>
+  );
+}
+
+function DailyCheckIn({
+  checkIn,
+  metric,
+  onCheckIn,
+}: {
+  checkIn: string;
+  metric: string;
+  onCheckIn: (value: string) => void;
+}) {
+  const options = ["Low", "Same", "Lighter", "Bright"];
+
+  return (
+    <motion.section
+      className="daily-checkin"
+      layout
+      layoutId="daily-checkin"
+      variants={moduleVariants}
+      custom={0.08}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <h2>How&apos;s your {metric.toLowerCase()} this morning?</h2>
+      <div className="energy-options">
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            className={checkIn === option ? "selected option" : "option"}
+            onClick={() => onCheckIn(option)}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    </motion.section>
   );
 }
 
@@ -743,58 +786,72 @@ function JourneyScreen({
   analysis,
   decision,
   activeExperiment,
+  checkIn,
+  todayContext,
 }: {
   analysis: ProblemAnalysis;
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
+  checkIn: string;
+  todayContext: TodayContext;
 }) {
-  const { experiment, learnedSignals } = decision;
+  const { experiment } = decision;
+  const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
+  const primaryLearning = checkIn
+    ? `After today's action you marked ${checkIn.toLowerCase()}. That's a useful first signal, not a conclusion yet.`
+    : completedToday
+      ? "One completed day is a start. A few more mornings will make the pattern clearer."
+      : "Too early to tell. The pattern will get clearer after a few check-ins.";
 
   return (
     <motion.div
-      className="tab-panel"
+      className="tab-panel journey-canvas"
       layout
       variants={screenVariants}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <span className="eyebrow">Your Journey</span>
-      <h1>What Recharge is learning.</h1>
+      <motion.div className="journey-heading" layout variants={moduleVariants} custom={0}>
+        <span className="eyebrow">Journey</span>
+        <h1>You&apos;re learning what gives you energy.</h1>
+      </motion.div>
 
-      <section className="soft-panel">
-        <span className="panel-label">Testing now</span>
-        <div className="learning-row">
-          <strong>{experiment.title}</strong>
-          <span>
+      <motion.article className="journey-current" layout layoutId="primary-experiment" variants={moduleVariants} custom={0.08}>
+        <div className="experiment-icon">{iconMap[experiment.icon]}</div>
+        <div>
+          <span>Right now</span>
+          <h2>{experiment.title}</h2>
+          <p>
             Day {activeExperiment.currentDay} of {experiment.durationDays}
-          </span>
+          </p>
         </div>
         <ExperimentDots activeExperiment={activeExperiment} />
-      </section>
+      </motion.article>
 
-      <section className="soft-panel">
-        <span className="panel-label">What seems to help</span>
-        {learnedSignals.map((signal) => (
-          <article className="signal-row" key={signal.id}>
-            <strong>{signal.label}</strong>
-            <span>{signal.direction === "unclear" ? "Signal pending" : "Positive signal"}</span>
-            <p>{signal.evidence}</p>
-          </article>
-        ))}
-      </section>
+      <motion.article className="insight-module" layout layoutId="journey-insight" variants={moduleVariants} custom={0.16}>
+        <span>{checkIn ? "A pattern may be emerging" : "Still gathering signal"}</span>
+        <p>{primaryLearning}</p>
+      </motion.article>
 
-      <section className="soft-panel">
-        <span className="panel-label">What we&apos;ve learned</span>
-        <div className="factor-list">
-          {analysis.factors.map((factor) => (
-            <article key={factor.id}>
-              <strong>{factor.label}</strong>
-              <p>{factor.description}</p>
-            </article>
-          ))}
+      <motion.div className="explore-next" layout variants={signalGroupVariants} initial="initial" animate="animate" exit="exit">
+        <span>Worth exploring next</span>
+        <div>
+          {analysis.factors
+            .filter((factor) => factor.label !== analysis.primaryFocus)
+            .slice(0, 2)
+            .map((factor) => (
+              <motion.button type="button" key={factor.id} variants={signalVariants}>
+                {factor.label}
+              </motion.button>
+            ))}
+          {todayContext.status !== "none" && (
+            <motion.button type="button" variants={signalVariants}>
+              {todayContext.label}
+            </motion.button>
+          )}
         </div>
-      </section>
+      </motion.div>
     </motion.div>
   );
 }
@@ -810,19 +867,17 @@ function UpdateScreen({
 }) {
   return (
     <motion.div
-      className="tab-panel"
+      className="tab-panel update-canvas"
       layout
       variants={screenVariants}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <span className="eyebrow">Something else going on?</span>
-      <h1>Tell Recharge what changed.</h1>
-      <p className="lead">
-        This is not an open-ended chat. Recharge uses updates to adjust the next experiment.
-      </p>
-      <form className="intake-form compact" onSubmit={onSubmitUpdate}>
+      <span className="eyebrow">Something changed?</span>
+      <h1>Tell Recharge.</h1>
+      <p className="lead">We&apos;ll adjust today around what&apos;s happening.</p>
+      <motion.form className="update-composer" layout layoutId="update-composer" onSubmit={onSubmitUpdate}>
         <textarea
           value={updateText}
           onChange={(event) => onUpdateText(event.target.value)}
@@ -830,10 +885,10 @@ function UpdateScreen({
           aria-label="Tell Recharge what changed"
         />
         <button className="primary-action" type="submit" disabled={!updateText.trim()}>
-          <span>Re-evaluate today</span>
+          <span>Adjust today</span>
           <ArrowRight size={18} aria-hidden="true" />
         </button>
-      </form>
+      </motion.form>
     </motion.div>
   );
 }
