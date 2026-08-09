@@ -70,9 +70,23 @@ export type ActiveExperiment = {
 
 export type LearnedSignal = {
   id: string;
+  factor: string;
   label: string;
-  direction: "helping" | "unclear" | "worsening";
+  direction: "helpful" | "unhelpful" | "unclear";
+  confidence: "early" | "emerging" | "established";
+  observations: number;
   evidence: string;
+  icon: Experiment["icon"];
+};
+
+export type PersonalRecoveryModel = {
+  status: "collecting" | "pattern-emerging";
+  primaryInsight: {
+    title: string;
+    body: string;
+    qualifier: string;
+  } | null;
+  learnedSignals: LearnedSignal[];
 };
 
 export type NextBestInteraction =
@@ -267,9 +281,13 @@ export const scenarios: Scenario[] = [
     learnedSignals: [
       {
         id: "morning-energy",
+        factor: "Morning energy",
         label: "Morning energy",
         direction: "unclear",
+        confidence: "early",
+        observations: 0,
         evidence: "Recharge will look for a signal after three quick morning check-ins.",
+        icon: "sun",
       },
     ],
   },
@@ -321,9 +339,13 @@ export const scenarios: Scenario[] = [
     learnedSignals: [
       {
         id: "shift-recovery",
+        factor: "Shift recovery",
         label: "Recovery after shift",
         direction: "unclear",
+        confidence: "early",
+        observations: 0,
         evidence: "Recharge will compare how you feel after protected transition days.",
+        icon: "clock",
       },
     ],
   },
@@ -362,9 +384,13 @@ export const scenarios: Scenario[] = [
     learnedSignals: [
       {
         id: "energy-availability",
+        factor: "Broken nights",
         label: "Energy availability",
         direction: "unclear",
+        confidence: "early",
+        observations: 0,
         evidence: "Recharge will watch whether short recovery cues make difficult mornings more manageable.",
+        icon: "heart",
       },
     ],
   },
@@ -403,9 +429,13 @@ export const scenarios: Scenario[] = [
     learnedSignals: [
       {
         id: "switch-off",
+        factor: "Evening brain dump",
         label: "Ease of switching off",
         direction: "unclear",
+        confidence: "early",
+        observations: 0,
         evidence: "Recharge will look for whether the shutdown cue makes bedtime feel less effortful.",
+        icon: "moon",
       },
     ],
   },
@@ -541,6 +571,58 @@ export function recordCheckIn(
         timestamp: "Today",
       },
     ],
+  };
+}
+
+export function buildPersonalRecoveryModel(
+  activeExperiment: ActiveExperiment | null,
+  experiment: Experiment | null,
+  learnedSignals: LearnedSignal[],
+): PersonalRecoveryModel {
+  const completedDays = activeExperiment?.adherence.filter(Boolean).length ?? 0;
+  const completedExperiment = activeExperiment?.status === "completed";
+
+  if (experiment?.id === "morning_light_reset" && completedExperiment) {
+    return {
+      status: "pattern-emerging",
+      primaryInsight: {
+        title: "Something is starting to stand out.",
+        body: "Your mornings tended to feel better on the days you got outside soon after waking.",
+        qualifier: "It is early, but this seems worth keeping in your rhythm.",
+      },
+      learnedSignals: [
+        {
+          id: "morning-light",
+          factor: "Morning light",
+          label: "Seems to help",
+          direction: "helpful",
+          confidence: "emerging",
+          observations: 4,
+          evidence: "Better, Same, Better, Much better across recent reset days.",
+          icon: "sun",
+        },
+        {
+          id: "late-caffeine",
+          factor: "Late caffeine",
+          label: "Worth exploring",
+          direction: "unclear",
+          confidence: "early",
+          observations: 2,
+          evidence: "Afternoon dips still appeared in a couple of notes.",
+          icon: "coffee",
+        },
+      ],
+    };
+  }
+
+  return {
+    status: "collecting",
+    primaryInsight: null,
+    learnedSignals: learnedSignals.map((signal) => ({
+      ...signal,
+      observations: Math.max(signal.observations, completedDays),
+      confidence: completedDays >= 2 ? "early" : signal.confidence,
+    })),
   };
 }
 

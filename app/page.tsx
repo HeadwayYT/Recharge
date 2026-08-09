@@ -5,18 +5,27 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import {
   ArrowRight,
+  Baby,
+  Briefcase,
   Check,
+  ChatCircle,
+  Clock,
   Coffee,
-  Home as HomeIcon,
-  MessageCircle,
+  Footprints,
+  Heart,
+  House,
+  Lightning,
   Moon,
-  Route as RouteIcon,
-  Sparkles,
-  SunMedium,
-  TimerReset,
-} from "lucide-react";
+  MoonStars,
+  Path,
+  Sparkle,
+  Sun,
+  SunHorizon,
+  TrendUp,
+} from "@phosphor-icons/react";
 import {
   analyzeProblem,
+  buildPersonalRecoveryModel,
   chooseExperiment,
   createActiveExperiment,
   getMissingInformation,
@@ -27,6 +36,7 @@ import {
   type Experiment,
   type ExperimentDecision,
   type MissingInformation,
+  type PersonalRecoveryModel,
   type ProblemAnalysis,
 } from "../lib/recharge";
 import {
@@ -49,20 +59,31 @@ import {
 type FlowStep = "landing" | "recommendation" | "today";
 type AppTab = "today" | "journey" | "update";
 type TodayContextStatus = "none" | "adapting" | "adapted";
+type TodayContextKind = "generic" | "brokenNight" | "nightShift";
 
 type TodayContext = {
   status: TodayContextStatus;
+  kind: TodayContextKind;
   text: string;
   label: string;
   title: string;
   message: string;
   action: string;
+  timeline?: {
+    now: string;
+    shiftStart: string;
+    shiftEnd: string;
+    before: string;
+    during: string;
+    after: string;
+  };
 };
 
 const quickStarts = ["For example: always tired", "For example: can't switch off", "For example: irregular schedule", "For example: broken nights"];
 
 const emptyTodayContext: TodayContext = {
   status: "none",
+  kind: "generic",
   text: "",
   label: "",
   title: "",
@@ -71,13 +92,23 @@ const emptyTodayContext: TodayContext = {
 };
 
 const iconMap: Record<Experiment["icon"], React.ReactNode> = {
-  sun: <SunMedium size={22} aria-hidden="true" />,
+  sun: <Sun size={22} weight="duotone" aria-hidden="true" />,
   coffee: <Coffee size={22} aria-hidden="true" />,
-  clock: <TimerReset size={22} aria-hidden="true" />,
+  clock: <Clock size={22} weight="duotone" aria-hidden="true" />,
   moon: <Moon size={22} aria-hidden="true" />,
-  spark: <Sparkles size={22} aria-hidden="true" />,
-  heart: <Sparkles size={22} aria-hidden="true" />,
-  steps: <RouteIcon size={22} aria-hidden="true" />,
+  spark: <Sparkle size={22} weight="duotone" aria-hidden="true" />,
+  heart: <Heart size={22} weight="duotone" aria-hidden="true" />,
+  steps: <Footprints size={22} weight="duotone" aria-hidden="true" />,
+};
+
+const signalIconMap: Record<Experiment["icon"], React.ReactNode> = {
+  sun: <SunHorizon size={24} weight="duotone" aria-hidden="true" />,
+  coffee: <Coffee size={24} weight="duotone" aria-hidden="true" />,
+  clock: <Clock size={24} weight="duotone" aria-hidden="true" />,
+  moon: <Moon size={24} weight="duotone" aria-hidden="true" />,
+  spark: <Sparkle size={24} weight="duotone" aria-hidden="true" />,
+  heart: <Heart size={24} weight="duotone" aria-hidden="true" />,
+  steps: <Footprints size={24} weight="duotone" aria-hidden="true" />,
 };
 
 function cleanStarter(starter: string) {
@@ -106,20 +137,43 @@ function createTodayContext(update: string): TodayContext {
   const brokenNight = ["baby", "awake", "all night", "broken", "child", "toddler", "interrupted"].some((term) =>
     lower.includes(term),
   );
+  const nightShift = ["night shift", "22:00", "22.00", "10 pm", "10pm"].some((term) => lower.includes(term));
+
+  if (nightShift) {
+    return {
+      status: "adapting",
+      kind: "nightShift",
+      text: update,
+      label: "Night shift",
+      title: "Tomorrow runs differently.",
+      message: "Recharge is moving tomorrow around the shift before it costs you recovery.",
+      action: "Protect a quiet buffer before 22:00 and a low-light landing after the shift.",
+      timeline: {
+        now: "Now",
+        shiftStart: "22:00",
+        shiftEnd: "06:00",
+        before: "Quiet buffer before leaving",
+        during: "Keep cues low and steady",
+        after: "Land softly into recovery",
+      },
+    };
+  }
 
   if (brokenNight) {
     return {
       status: "adapting",
+      kind: "brokenNight",
       text: update,
       label: "Broken night",
-      title: "Recovery Day",
-      message: "Today does not need to be perfect.",
+      title: "Take today lighter.",
+      message: "Last night changed the equation. Recovery matters more than pushing the experiment today.",
       action: "Take a 12-minute outside reset or quiet walk before midday.",
     };
   }
 
   return {
     status: "adapting",
+    kind: "generic",
     text: update,
     label: "Changed context",
     title: "Lighter Day",
@@ -144,6 +198,11 @@ export default function Home() {
   const pendingMissingInformation =
     missingInformation && answers[missingInformation.id] == null ? missingInformation : null;
   const previewDecision = analysis ? chooseExperiment(analysis, answers) : null;
+  const personalRecoveryModel = buildPersonalRecoveryModel(
+    activeExperiment,
+    decision?.experiment ?? null,
+    decision?.learnedSignals ?? previewDecision?.learnedSignals ?? [],
+  );
   const adherenceKey = activeExperiment?.adherence.map((done) => (done ? "1" : "0")).join("") ?? "";
   const answerKey = Object.values(answers).join("|");
 
@@ -273,6 +332,7 @@ export default function Home() {
                   analysis={analysis}
                   decision={decision}
                   activeExperiment={activeExperiment}
+                  personalRecoveryModel={personalRecoveryModel}
                   checkIn={checkIn}
                   todayContext={todayContext}
                   onCheckIn={recordMorningCheckIn}
@@ -482,7 +542,9 @@ function ExperimentModule({
       : mode === "completedToday"
         ? `Day ${activeExperiment?.currentDay ?? 1} complete.`
         : mode === "secondary"
-          ? "Still running, just lighter today."
+          ? activeExperiment?.status === "completed"
+            ? "Completed. Now informing your recovery rhythm."
+            : "Still running, just lighter today."
           : experiment.userAction;
 
   return (
@@ -521,6 +583,7 @@ function TodayShell({
   analysis,
   decision,
   activeExperiment,
+  personalRecoveryModel,
   checkIn,
   todayContext,
   onCheckIn,
@@ -534,6 +597,7 @@ function TodayShell({
   analysis: ProblemAnalysis;
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
+  personalRecoveryModel: PersonalRecoveryModel;
   checkIn: string;
   todayContext: TodayContext;
   onCheckIn: (value: string) => void;
@@ -560,6 +624,7 @@ function TodayShell({
               analysis={analysis}
               decision={decision}
               activeExperiment={activeExperiment}
+              personalRecoveryModel={personalRecoveryModel}
               checkIn={checkIn}
               todayContext={todayContext}
               onCheckIn={onCheckIn}
@@ -572,6 +637,7 @@ function TodayShell({
               analysis={analysis}
               decision={decision}
               activeExperiment={activeExperiment}
+              personalRecoveryModel={personalRecoveryModel}
               checkIn={checkIn}
               todayContext={todayContext}
             />
@@ -605,9 +671,9 @@ function TodayShell({
             className={activeTab === tab ? "active" : ""}
             onClick={() => onTabChange(tab)}
           >
-            {tab === "today" && <HomeIcon size={17} aria-hidden="true" />}
-            {tab === "journey" && <RouteIcon size={17} aria-hidden="true" />}
-            {tab === "update" && <MessageCircle size={17} aria-hidden="true" />}
+            {tab === "today" && <House size={17} weight="duotone" aria-hidden="true" />}
+            {tab === "journey" && <Path size={17} weight="duotone" aria-hidden="true" />}
+            {tab === "update" && <ChatCircle size={17} weight="duotone" aria-hidden="true" />}
             <span>{tab === "update" ? "Update" : tab[0].toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
@@ -620,6 +686,7 @@ function TodayScreen({
   analysis,
   decision,
   activeExperiment,
+  personalRecoveryModel,
   checkIn,
   todayContext,
   onCheckIn,
@@ -628,6 +695,7 @@ function TodayScreen({
   analysis: ProblemAnalysis;
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
+  personalRecoveryModel: PersonalRecoveryModel;
   checkIn: string;
   todayContext: TodayContext;
   onCheckIn: (value: string) => void;
@@ -637,10 +705,24 @@ function TodayScreen({
   const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
   const [whyOpen, setWhyOpen] = useState(false);
   const hasAdaptedContext = todayContext.status !== "none";
+  const learningReady = !hasAdaptedContext && personalRecoveryModel.status === "pattern-emerging";
+  const canvasStateClass = hasAdaptedContext
+    ? `context-${todayContext.status} context-${todayContext.kind}`
+    : learningReady
+      ? "learning-ready"
+      : "";
+  const greetingLabel = hasAdaptedContext ? todayContext.label : learningReady ? "Learning" : "Today";
+  const greetingTitle = hasAdaptedContext
+    ? todayContext.kind === "nightShift"
+      ? "Night Shift Mode"
+      : "Lighter today."
+    : learningReady
+      ? "Your reset is becoming knowledge."
+      : "Good morning.";
 
   return (
     <motion.div
-      className={`tab-panel today-canvas ${hasAdaptedContext ? `context-${todayContext.status}` : ""}`}
+      className={`tab-panel today-canvas ${canvasStateClass}`}
       layout
       variants={screenVariants}
       initial="initial"
@@ -648,8 +730,8 @@ function TodayScreen({
       exit="exit"
     >
       <motion.div className="today-greeting" layout variants={moduleVariants} custom={0}>
-        <span className="eyebrow">{hasAdaptedContext ? todayContext.label : "Today"}</span>
-        <h1>{hasAdaptedContext ? "Lighter today." : "Good morning."}</h1>
+        <span className="eyebrow">{greetingLabel}</span>
+        <h1>{greetingTitle}</h1>
       </motion.div>
 
       <AnimatePresence mode="popLayout">
@@ -673,13 +755,19 @@ function TodayScreen({
       </AnimatePresence>
 
       <AnimatePresence>
-        {hasAdaptedContext && (
+        {hasAdaptedContext && todayContext.kind !== "nightShift" && (
           <AdaptedActionModule key="adapted-action" todayContext={todayContext} />
+        )}
+        {hasAdaptedContext && todayContext.kind === "nightShift" && (
+          <NightShiftModule key="night-shift" todayContext={todayContext} />
+        )}
+        {learningReady && personalRecoveryModel.primaryInsight && (
+          <LearningMoment key="learning-moment" personalRecoveryModel={personalRecoveryModel} />
         )}
       </AnimatePresence>
 
       <ExperimentModule
-        mode={hasAdaptedContext ? "secondary" : completedToday ? "completedToday" : "active"}
+        mode={hasAdaptedContext || learningReady ? "secondary" : completedToday ? "completedToday" : "active"}
         experiment={experiment}
         activeExperiment={activeExperiment}
         primaryFocus={analysis.primaryFocus}
@@ -688,29 +776,31 @@ function TodayScreen({
       />
 
       <AnimatePresence>
-        {completedToday && !hasAdaptedContext && (
+        {completedToday && !hasAdaptedContext && !learningReady && (
           <DailyCheckIn key="daily-checkin" checkIn={checkIn} metric={experiment.targetOutcome} onCheckIn={onCheckIn} />
         )}
       </AnimatePresence>
 
-      <motion.div className="quiet-why" layout variants={moduleVariants} custom={0.18}>
-        <button type="button" onClick={() => setWhyOpen((open) => !open)}>
-          Why this?
-        </button>
-        <AnimatePresence>
-          {whyOpen && (
-            <motion.p
-              key="why-copy"
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
-              {hasAdaptedContext ? todayContext.action : experiment.explanation}
-            </motion.p>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      {!learningReady && (
+        <motion.div className="quiet-why" layout variants={moduleVariants} custom={0.18}>
+          <button type="button" onClick={() => setWhyOpen((open) => !open)}>
+            Why this?
+          </button>
+          <AnimatePresence>
+            {whyOpen && (
+              <motion.p
+                key="why-copy"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                {hasAdaptedContext ? todayContext.action : experiment.explanation}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
@@ -726,9 +816,82 @@ function AdaptedActionModule({ todayContext }: { todayContext: TodayContext }) {
       animate="animate"
       exit="exit"
     >
-      <span>{todayContext.status === "adapting" ? "Making room" : "Today"}</span>
+      <span>
+        {todayContext.kind === "brokenNight" ? (
+          <Baby size={18} weight="duotone" aria-hidden="true" />
+        ) : (
+          <Lightning size={18} weight="duotone" aria-hidden="true" />
+        )}
+        {todayContext.status === "adapting" ? "Making room" : "Today"}
+      </span>
       <h2>{todayContext.status === "adapting" ? "Lighter Day" : todayContext.title}</h2>
       <p>{todayContext.status === "adapting" ? "Keeping the longer experiment, lowering today's demand." : todayContext.action}</p>
+    </motion.article>
+  );
+}
+
+function LearningMoment({ personalRecoveryModel }: { personalRecoveryModel: PersonalRecoveryModel }) {
+  const insight = personalRecoveryModel.primaryInsight;
+  if (!insight) return null;
+
+  return (
+    <motion.article
+      className="learning-moment"
+      layout
+      layoutId="learning:morning-reset"
+      variants={experimentFormationVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <span>
+        <TrendUp size={18} weight="duotone" aria-hidden="true" />
+        {insight.title}
+      </span>
+      <h2>{insight.body}</h2>
+      <p>{insight.qualifier}</p>
+    </motion.article>
+  );
+}
+
+function NightShiftModule({ todayContext }: { todayContext: TodayContext }) {
+  const timeline = todayContext.timeline;
+  if (!timeline) return null;
+
+  return (
+    <motion.article
+      className={`night-shift-module ${todayContext.status}`}
+      layout
+      layoutId="adapted-action"
+      variants={experimentFormationVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <div className="night-shift-copy">
+        <span>
+          <MoonStars size={18} weight="duotone" aria-hidden="true" />
+          {todayContext.title}
+        </span>
+        <p>{todayContext.message}</p>
+      </div>
+      <div className="shift-line" aria-label="Night shift recovery plan">
+        <div className="shift-node now">
+          <SunHorizon size={22} weight="duotone" aria-hidden="true" />
+          <strong>{timeline.now}</strong>
+          <span>{timeline.before}</span>
+        </div>
+        <div className="shift-node start">
+          <Briefcase size={22} weight="duotone" aria-hidden="true" />
+          <strong>{timeline.shiftStart}</strong>
+          <span>{timeline.during}</span>
+        </div>
+        <div className="shift-node end">
+          <MoonStars size={22} weight="duotone" aria-hidden="true" />
+          <strong>{timeline.shiftEnd}</strong>
+          <span>{timeline.after}</span>
+        </div>
+      </div>
     </motion.article>
   );
 }
@@ -776,22 +939,22 @@ function JourneyScreen({
   analysis,
   decision,
   activeExperiment,
+  personalRecoveryModel,
   checkIn,
   todayContext,
 }: {
   analysis: ProblemAnalysis;
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
+  personalRecoveryModel: PersonalRecoveryModel;
   checkIn: string;
   todayContext: TodayContext;
 }) {
   const { experiment } = decision;
-  const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
-  const primaryLearning = checkIn
-    ? `After today's action you marked ${checkIn.toLowerCase()}. That's a useful first signal, not a conclusion yet.`
-    : completedToday
-      ? "One completed day is a start. A few more mornings will make the pattern clearer."
-      : "Too early to tell. The pattern will get clearer after a few check-ins.";
+  const journeyTitle =
+    personalRecoveryModel.status === "pattern-emerging"
+      ? "You're starting to learn your rhythm."
+      : "Recharge is learning what gives you energy.";
 
   return (
     <motion.div
@@ -804,11 +967,11 @@ function JourneyScreen({
     >
       <motion.div className="journey-heading" layout variants={moduleVariants} custom={0}>
         <span className="eyebrow">Journey</span>
-        <h1>You&apos;re learning what gives you energy.</h1>
+        <h1>{journeyTitle}</h1>
       </motion.div>
 
       <motion.article
-        className="journey-current"
+        className={`journey-current ${activeExperiment.status === "completed" ? "quiet" : ""}`}
         layout
         layoutId={`experiment:${experiment.id}`}
         transition={spatialBehaviors.surfaceInsight}
@@ -820,35 +983,100 @@ function JourneyScreen({
           <span>Right now</span>
           <h2>{experiment.title}</h2>
           <p>
-            Day {activeExperiment.currentDay} of {experiment.durationDays}
+            {activeExperiment.status === "completed"
+              ? "Completed and informing your recovery map"
+              : `Day ${activeExperiment.currentDay} of ${experiment.durationDays}`}
           </p>
         </div>
         <ExperimentDots activeExperiment={activeExperiment} />
       </motion.article>
 
-      <motion.article className="insight-module" layout layoutId="journey-insight" variants={moduleVariants} custom={0.16}>
-        <span>{checkIn ? "A pattern may be emerging" : "Still gathering signal"}</span>
-        <p>{primaryLearning}</p>
-      </motion.article>
+      <PersonalRecoveryMap
+        analysis={analysis}
+        checkIn={checkIn}
+        personalRecoveryModel={personalRecoveryModel}
+        todayContext={todayContext}
+      />
+    </motion.div>
+  );
+}
 
-      <motion.div className="explore-next" layout variants={signalGroupVariants} initial="initial" animate="animate" exit="exit">
-        <span>Worth exploring next</span>
-        <div>
-          {analysis.factors
-            .filter((factor) => factor.label !== analysis.primaryFocus)
-            .slice(0, 2)
-            .map((factor) => (
-              <motion.button type="button" key={factor.id} variants={signalVariants}>
-                {factor.label}
-              </motion.button>
-            ))}
-          {todayContext.status !== "none" && (
-            <motion.button type="button" variants={signalVariants}>
-              {todayContext.label}
-            </motion.button>
-          )}
-        </div>
-      </motion.div>
+function PersonalRecoveryMap({
+  analysis,
+  checkIn,
+  personalRecoveryModel,
+  todayContext,
+}: {
+  analysis: ProblemAnalysis;
+  checkIn: string;
+  personalRecoveryModel: PersonalRecoveryModel;
+  todayContext: TodayContext;
+}) {
+  const contextSignal =
+    todayContext.kind === "nightShift"
+      ? {
+          id: "night-shift-context",
+          factor: "Night shift",
+          label: "Changes tomorrow",
+          direction: "unclear" as const,
+          confidence: "early" as const,
+          observations: 1,
+          evidence: "Recharge is adapting before the shift starts.",
+          icon: "clock" as const,
+        }
+      : todayContext.kind === "brokenNight"
+        ? {
+            id: "broken-night-context",
+            factor: "Broken nights",
+            label: "Big impact",
+            direction: "unhelpful" as const,
+            confidence: "early" as const,
+            observations: 1,
+            evidence: "The day changed after an uncontrollable night.",
+            icon: "moon" as const,
+          }
+        : null;
+  const quietFactors = analysis.factors
+    .filter((factor) => factor.label !== analysis.primaryFocus)
+    .slice(0, 1)
+    .map((factor) => ({
+      id: factor.id,
+      factor: factor.label,
+      label: "Worth exploring",
+      direction: "unclear" as const,
+      confidence: "early" as const,
+      observations: checkIn ? 1 : 0,
+      evidence: factor.description,
+      icon: factor.id.includes("caffeine") ? ("coffee" as const) : ("spark" as const),
+    }));
+  const signals = [
+    ...personalRecoveryModel.learnedSignals,
+    ...quietFactors,
+    ...(contextSignal ? [contextSignal] : []),
+  ].slice(0, 4);
+
+  return (
+    <motion.div
+      className={`recovery-map ${personalRecoveryModel.status}`}
+      layout
+      layoutId="personal-recovery-map"
+      variants={signalGroupVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      {signals.map((signal, index) => (
+        <motion.div
+          className={`recovery-signal signal-${index} ${signal.direction}`}
+          key={signal.id}
+          layout
+          variants={signalVariants}
+        >
+          <span>{signalIconMap[signal.icon]}</span>
+          <strong>{signal.factor}</strong>
+          <p>{signal.label}</p>
+        </motion.div>
+      ))}
     </motion.div>
   );
 }
