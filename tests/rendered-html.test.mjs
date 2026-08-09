@@ -70,3 +70,25 @@ test("keeps the signature recovery canvas state-driven and shared", async () => 
   assert.match(recoveryField, /"disrupted"/);
   assert.match(recoveryField, /"anticipating"/);
 });
+
+test("keeps broad context behind one constrained action decision", async () => {
+  const [page, context] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/recovery-context.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(context, /export type RecoveryContext/);
+  assert.match(context, /sleep/);
+  assert.match(context, /energy/);
+  assert.match(context, /work/);
+  assert.match(context, /stress/);
+  assert.match(context, /movement/);
+  assert.match(context, /lifeEvents/);
+  assert.match(context, /schedule/);
+  assert.match(context, /selectNextBestAction/);
+  assert.match(context, /getApprovedAction/);
+  assert.match(context, /temporary-override/);
+  assert.match(context, /upcoming-override/);
+  assert.match(page, /selectNextBestAction\(recoveryContext, decision\.experiment\)/);
+  assert.doesNotMatch(page, /ChatCircle/);
+});

@@ -8,7 +8,6 @@ import {
   Baby,
   Briefcase,
   Check,
-  ChatCircle,
   Clock,
   Coffee,
   Footprints,
@@ -18,6 +17,7 @@ import {
   Moon,
   MoonStars,
   Path,
+  Plus,
   Sparkle,
   Sun,
   SunHorizon,
@@ -40,6 +40,13 @@ import {
   type ProblemAnalysis,
 } from "../lib/recharge";
 import {
+  createRecoveryContext,
+  interpretContextUpdate,
+  selectNextBestAction,
+  type NextBestAction,
+  type RecoveryContext,
+} from "../lib/recovery-context";
+import {
   composerVariants,
   experimentFormationVariants,
   extractedComposerVariants,
@@ -59,50 +66,24 @@ import { RecoveryField, type RecoveryFieldState } from "../components/recharge/R
 type FlowStep = "landing" | "recommendation" | "today";
 type AppTab = "today" | "journey" | "update";
 type TodayContextStatus = "none" | "adapting" | "adapted";
-type TodayContextKind = "generic" | "brokenNight" | "nightShift";
-
-type TodayContext = {
-  status: TodayContextStatus;
-  kind: TodayContextKind;
-  text: string;
-  label: string;
-  title: string;
-  message: string;
-  action: string;
-  timeline?: {
-    now: string;
-    shiftStart: string;
-    shiftEnd: string;
-    before: string;
-    during: string;
-    after: string;
-  };
-};
 
 const quickStarts = ["For example: always tired", "For example: can't switch off", "For example: irregular schedule", "For example: broken nights"];
-
-const emptyTodayContext: TodayContext = {
-  status: "none",
-  kind: "generic",
-  text: "",
-  label: "",
-  title: "",
-  message: "",
-  action: "",
-};
 
 function getRecoveryFieldState(
   step: FlowStep,
   activeTab: AppTab,
-  todayContext: TodayContext,
+  contextStatus: TodayContextStatus,
+  nextBestAction: NextBestAction | null,
   personalRecoveryModel: PersonalRecoveryModel,
 ): RecoveryFieldState {
   if (step === "landing") return "unknown";
   if (step === "recommendation") return "focusing";
-  if (todayContext.kind === "nightShift" && todayContext.status !== "none") return "anticipating";
-  if (todayContext.kind === "brokenNight" && todayContext.status === "adapting") return "disrupted";
-  if (todayContext.kind === "brokenNight" && todayContext.status === "adapted") return "recovering";
-  if (personalRecoveryModel.status === "pattern-emerging" || activeTab === "journey") return "learning";
+  if (activeTab === "journey") return "learning";
+  if (nextBestAction?.mode === "nightShift" && contextStatus !== "none") return "anticipating";
+  if (nextBestAction?.mode === "recoveryDay" && contextStatus === "adapting") return "disrupted";
+  if (nextBestAction?.mode === "recoveryDay" && contextStatus === "adapted") return "recovering";
+  if (nextBestAction?.mode === "decompression" && contextStatus !== "none") return "focusing";
+  if (personalRecoveryModel.status === "pattern-emerging") return "learning";
   return "active";
 }
 
@@ -147,56 +128,6 @@ function getVisibleSignals(problemText: string, analysis?: ProblemAnalysis) {
   return Array.from(new Set([...signals, ...factorSignals])).slice(0, 4);
 }
 
-function createTodayContext(update: string): TodayContext {
-  const lower = update.toLowerCase();
-  const brokenNight = ["baby", "awake", "all night", "broken", "child", "toddler", "interrupted"].some((term) =>
-    lower.includes(term),
-  );
-  const nightShift = ["night shift", "22:00", "22.00", "10 pm", "10pm"].some((term) => lower.includes(term));
-
-  if (nightShift) {
-    return {
-      status: "adapting",
-      kind: "nightShift",
-      text: update,
-      label: "Night shift",
-      title: "Tomorrow runs differently.",
-      message: "Recharge is moving tomorrow around the shift before it costs you recovery.",
-      action: "Protect a quiet buffer before 22:00 and a low-light landing after the shift.",
-      timeline: {
-        now: "Now",
-        shiftStart: "22:00",
-        shiftEnd: "06:00",
-        before: "Quiet buffer before leaving",
-        during: "Keep cues low and steady",
-        after: "Land softly into recovery",
-      },
-    };
-  }
-
-  if (brokenNight) {
-    return {
-      status: "adapting",
-      kind: "brokenNight",
-      text: update,
-      label: "Broken night",
-      title: "Take today lighter.",
-      message: "Last night changed the equation. Recovery matters more than pushing the experiment today.",
-      action: "Take a 12-minute outside reset or quiet walk before midday.",
-    };
-  }
-
-  return {
-    status: "adapting",
-    kind: "generic",
-    text: update,
-    label: "Changed context",
-    title: "Lighter Day",
-    message: "Recharge is adjusting the expectation around what is happening.",
-    action: "Keep the smallest useful version of today's experiment.",
-  };
-}
-
 export default function Home() {
   const [step, setStep] = useState<FlowStep>("landing");
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -207,7 +138,8 @@ export default function Home() {
   const [activeExperiment, setActiveExperiment] = useState<ActiveExperiment | null>(null);
   const [checkIn, setCheckIn] = useState("");
   const [updateText, setUpdateText] = useState("");
-  const [todayContext, setTodayContext] = useState<TodayContext>(emptyTodayContext);
+  const [recoveryContext, setRecoveryContext] = useState<RecoveryContext | null>(null);
+  const [contextStatus, setContextStatus] = useState<TodayContextStatus>("none");
 
   const missingInformation = analysis ? getMissingInformation(analysis) : null;
   const pendingMissingInformation =
@@ -220,7 +152,14 @@ export default function Home() {
   );
   const adherenceKey = activeExperiment?.adherence.map((done) => (done ? "1" : "0")).join("") ?? "";
   const answerKey = Object.values(answers).join("|");
-  const recoveryFieldState = getRecoveryFieldState(step, activeTab, todayContext, personalRecoveryModel);
+  const nextBestAction = decision && recoveryContext ? selectNextBestAction(recoveryContext, decision.experiment) : null;
+  const recoveryFieldState = getRecoveryFieldState(
+    step,
+    activeTab,
+    contextStatus,
+    nextBestAction,
+    personalRecoveryModel,
+  );
 
   useEffect(() => {
     const resetScroll = () => {
@@ -232,7 +171,7 @@ export default function Home() {
 
     resetScroll();
     window.setTimeout(resetScroll, 0);
-  }, [step, activeTab, answerKey, adherenceKey, todayContext.status]);
+  }, [step, activeTab, answerKey, adherenceKey, contextStatus]);
 
   function submitProblem(event?: FormEvent<HTMLFormElement>, explicitText?: string) {
     event?.preventDefault();
@@ -246,7 +185,8 @@ export default function Home() {
     setDecision(null);
     setActiveExperiment(null);
     setCheckIn("");
-    setTodayContext(emptyTodayContext);
+    setRecoveryContext(createRecoveryContext(nextAnalysis));
+    setContextStatus("none");
     setActiveTab("today");
     setStep("recommendation");
   }
@@ -272,9 +212,9 @@ export default function Home() {
   }
 
   function recordMorningCheckIn(value: string) {
-    if (!activeExperiment || !decision) return;
+    if (!activeExperiment) return;
     setCheckIn(value);
-    setActiveExperiment(recordCheckIn(activeExperiment, decision.experiment.targetOutcome, value));
+    setActiveExperiment(recordCheckIn(activeExperiment, "Daily energy", value));
   }
 
   function restart() {
@@ -285,7 +225,8 @@ export default function Home() {
     setActiveExperiment(null);
     setCheckIn("");
     setUpdateText("");
-    setTodayContext(emptyTodayContext);
+    setRecoveryContext(null);
+    setContextStatus("none");
     setActiveTab("today");
     setStep("landing");
   }
@@ -295,12 +236,14 @@ export default function Home() {
     const text = updateText.trim();
     if (!text) return;
 
-    const context = createTodayContext(text);
-    setTodayContext(context);
+    if (!analysis || !decision) return;
+    const nextContext = interpretContextUpdate(recoveryContext ?? createRecoveryContext(analysis), text);
+    setRecoveryContext(nextContext);
+    setContextStatus("adapting");
     setUpdateText("");
     setActiveTab("today");
     window.setTimeout(() => {
-      setTodayContext({ ...context, status: "adapted" });
+      setContextStatus("adapted");
     }, 980);
   }
 
@@ -347,7 +290,9 @@ export default function Home() {
                   activeExperiment={activeExperiment}
                   personalRecoveryModel={personalRecoveryModel}
                   checkIn={checkIn}
-                  todayContext={todayContext}
+                  recoveryContext={recoveryContext}
+                  contextStatus={contextStatus}
+                  nextBestAction={nextBestAction}
                   onCheckIn={recordMorningCheckIn}
                   onDone={markDone}
                   updateText={updateText}
@@ -384,7 +329,7 @@ function LandingScreen({
     >
       <div className="opening-copy">
         <h1>What&apos;s been draining your energy lately?</h1>
-        <p>Tell me what&apos;s been going on. You don&apos;t need to know what the problem is yet.</p>
+        <p>Add whatever feels relevant. Recharge will narrow it to one place to start.</p>
       </div>
 
       <motion.form
@@ -409,7 +354,7 @@ function LandingScreen({
           ))}
         </div>
         <button className="primary-action" type="submit" disabled={!problemText.trim()}>
-          <span>Start my Recharge</span>
+          <span>Find my focus</span>
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </motion.form>
@@ -485,7 +430,7 @@ function RecommendationCanvas({
         experiment={experiment}
         activeExperiment={null}
         primaryFocus={analysis.primaryFocus}
-        actionCopy="Start experiment"
+        actionCopy="Start this focus"
         formation="seed"
         onPrimaryAction={onStart}
       />
@@ -613,7 +558,9 @@ function TodayShell({
   activeExperiment,
   personalRecoveryModel,
   checkIn,
-  todayContext,
+  recoveryContext,
+  contextStatus,
+  nextBestAction,
   onCheckIn,
   onDone,
   updateText,
@@ -627,7 +574,9 @@ function TodayShell({
   activeExperiment: ActiveExperiment;
   personalRecoveryModel: PersonalRecoveryModel;
   checkIn: string;
-  todayContext: TodayContext;
+  recoveryContext: RecoveryContext | null;
+  contextStatus: TodayContextStatus;
+  nextBestAction: NextBestAction | null;
   onCheckIn: (value: string) => void;
   onDone: () => void;
   updateText: string;
@@ -654,7 +603,9 @@ function TodayShell({
               activeExperiment={activeExperiment}
               personalRecoveryModel={personalRecoveryModel}
               checkIn={checkIn}
-              todayContext={todayContext}
+              recoveryContext={recoveryContext}
+              contextStatus={contextStatus}
+              nextBestAction={nextBestAction}
               onCheckIn={onCheckIn}
               onDone={onDone}
             />
@@ -667,7 +618,7 @@ function TodayShell({
               activeExperiment={activeExperiment}
               personalRecoveryModel={personalRecoveryModel}
               checkIn={checkIn}
-              todayContext={todayContext}
+              nextBestAction={nextBestAction}
             />
           )}
           {activeTab === "update" && (
@@ -701,7 +652,7 @@ function TodayShell({
           >
             {tab === "today" && <House size={17} weight="duotone" aria-hidden="true" />}
             {tab === "journey" && <Path size={17} weight="duotone" aria-hidden="true" />}
-            {tab === "update" && <ChatCircle size={17} weight="duotone" aria-hidden="true" />}
+            {tab === "update" && <Plus size={17} weight="bold" aria-hidden="true" />}
             <span>{tab === "update" ? "Update" : tab[0].toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
@@ -716,7 +667,9 @@ function TodayScreen({
   activeExperiment,
   personalRecoveryModel,
   checkIn,
-  todayContext,
+  recoveryContext,
+  contextStatus,
+  nextBestAction,
   onCheckIn,
   onDone,
 }: {
@@ -725,28 +678,25 @@ function TodayScreen({
   activeExperiment: ActiveExperiment;
   personalRecoveryModel: PersonalRecoveryModel;
   checkIn: string;
-  todayContext: TodayContext;
+  recoveryContext: RecoveryContext | null;
+  contextStatus: TodayContextStatus;
+  nextBestAction: NextBestAction | null;
   onCheckIn: (value: string) => void;
   onDone: () => void;
 }) {
   const { experiment } = decision;
   const completedToday = activeExperiment.adherence[activeExperiment.currentDay - 1];
   const [whyOpen, setWhyOpen] = useState(false);
-  const hasAdaptedContext = todayContext.status !== "none";
+  const contextText = recoveryContext?.activeSignal?.sourceText ?? "";
+  const hasAdaptedContext = contextStatus !== "none" && nextBestAction?.source !== "experiment";
   const learningReady = !hasAdaptedContext && personalRecoveryModel.status === "pattern-emerging";
   const canvasStateClass = hasAdaptedContext
-    ? `context-${todayContext.status} context-${todayContext.kind}`
+    ? `context-${contextStatus} context-${nextBestAction?.mode ?? "context"}`
     : learningReady
       ? "learning-ready"
       : "";
-  const greetingLabel = hasAdaptedContext ? todayContext.label : learningReady ? "Learning" : "Today";
-  const greetingTitle = hasAdaptedContext
-    ? todayContext.kind === "nightShift"
-      ? "Night Shift Mode"
-      : "Lighter today."
-    : learningReady
-      ? "Your reset is becoming knowledge."
-      : "Good morning.";
+  const greetingLabel = hasAdaptedContext ? nextBestAction?.label : learningReady ? "Learning" : "Today";
+  const greetingTitle = learningReady ? "Your reset is becoming knowledge." : "Good morning.";
 
   return (
     <motion.div
@@ -760,14 +710,27 @@ function TodayScreen({
       <motion.div className="today-greeting" layout variants={moduleVariants} custom={0}>
         <span className="eyebrow">{greetingLabel}</span>
         <h1>{greetingTitle}</h1>
+        {!hasAdaptedContext && !learningReady && activeExperiment.status === "active" && (
+          <DailyCheckIn checkIn={checkIn} onCheckIn={onCheckIn} />
+        )}
       </motion.div>
 
       <AnimatePresence>
-        {hasAdaptedContext && todayContext.kind !== "nightShift" && (
-          <AdaptedActionModule key="adapted-action" todayContext={todayContext} />
+        {hasAdaptedContext && nextBestAction?.mode !== "nightShift" && (
+          <AdaptedActionModule
+            key="adapted-action"
+            action={nextBestAction}
+            contextStatus={contextStatus}
+            contextText={contextText}
+          />
         )}
-        {hasAdaptedContext && todayContext.kind === "nightShift" && (
-          <NightShiftModule key="night-shift" todayContext={todayContext} />
+        {hasAdaptedContext && nextBestAction?.mode === "nightShift" && (
+          <NightShiftModule
+            key="night-shift"
+            action={nextBestAction}
+            contextStatus={contextStatus}
+            contextText={contextText}
+          />
         )}
       </AnimatePresence>
 
@@ -792,12 +755,6 @@ function TodayScreen({
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {completedToday && !hasAdaptedContext && !learningReady && (
-          <DailyCheckIn key="daily-checkin" checkIn={checkIn} metric={experiment.targetOutcome} onCheckIn={onCheckIn} />
-        )}
-      </AnimatePresence>
-
       {!learningReady && (
         <motion.div className="quiet-why" layout variants={moduleVariants} custom={0.18}>
           <button type="button" onClick={() => setWhyOpen((open) => !open)}>
@@ -812,7 +769,7 @@ function TodayScreen({
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18 }}
               >
-                {hasAdaptedContext ? todayContext.action : experiment.explanation}
+                {hasAdaptedContext ? nextBestAction?.message : experiment.explanation}
               </motion.p>
             )}
           </AnimatePresence>
@@ -822,10 +779,18 @@ function TodayScreen({
   );
 }
 
-function AdaptedActionModule({ todayContext }: { todayContext: TodayContext }) {
+function AdaptedActionModule({
+  action,
+  contextStatus,
+  contextText,
+}: {
+  action: NextBestAction;
+  contextStatus: TodayContextStatus;
+  contextText: string;
+}) {
   return (
     <motion.article
-      className={`adapted-action-module ${todayContext.status}`}
+      className={`adapted-action-module ${contextStatus}`}
       layout
       layoutId="context-adaptation"
       variants={experimentFormationVariants}
@@ -834,16 +799,18 @@ function AdaptedActionModule({ todayContext }: { todayContext: TodayContext }) {
       exit="exit"
     >
       <span>
-        {todayContext.kind === "brokenNight" ? (
+        {action.mode === "recoveryDay" ? (
           <Baby size={18} weight="duotone" aria-hidden="true" />
+        ) : action.mode === "decompression" ? (
+          <Moon size={18} weight="duotone" aria-hidden="true" />
         ) : (
           <Lightning size={18} weight="duotone" aria-hidden="true" />
         )}
-        {todayContext.status === "adapting" ? "Making room" : "Today"}
+        {action.label}
       </span>
-      <blockquote>{todayContext.text}</blockquote>
-      <h2>{todayContext.status === "adapting" ? "Lighter Day" : todayContext.title}</h2>
-      <p>{todayContext.status === "adapting" ? "Keeping the longer experiment, lowering today's demand." : todayContext.action}</p>
+      <blockquote>{contextText}</blockquote>
+      <h2>{action.title}</h2>
+      <p>{action.action}</p>
     </motion.article>
   );
 }
@@ -891,13 +858,21 @@ function LearningMoment({
   );
 }
 
-function NightShiftModule({ todayContext }: { todayContext: TodayContext }) {
-  const timeline = todayContext.timeline;
+function NightShiftModule({
+  action,
+  contextStatus,
+  contextText,
+}: {
+  action: NextBestAction;
+  contextStatus: TodayContextStatus;
+  contextText: string;
+}) {
+  const timeline = action.timeline;
   if (!timeline) return null;
 
   return (
     <motion.article
-      className={`night-shift-module ${todayContext.status}`}
+      className={`night-shift-module ${contextStatus}`}
       layout
       layoutId="context-adaptation"
       variants={experimentFormationVariants}
@@ -908,10 +883,10 @@ function NightShiftModule({ todayContext }: { todayContext: TodayContext }) {
       <div className="night-shift-copy">
         <span>
           <MoonStars size={18} weight="duotone" aria-hidden="true" />
-          {todayContext.title}
+          {action.title}
         </span>
-        <blockquote>{todayContext.text}</blockquote>
-        <p>{todayContext.message}</p>
+        <blockquote>{contextText}</blockquote>
+        <p>{action.message}</p>
       </div>
       <div className="shift-line" aria-label="Night shift recovery plan">
         <div className="shift-node now">
@@ -936,14 +911,12 @@ function NightShiftModule({ todayContext }: { todayContext: TodayContext }) {
 
 function DailyCheckIn({
   checkIn,
-  metric,
   onCheckIn,
 }: {
   checkIn: string;
-  metric: string;
   onCheckIn: (value: string) => void;
 }) {
-  const options = ["Low", "Same", "Lighter", "Bright"];
+  const options = ["Rough", "Okay", "Good", "Energized"];
 
   return (
     <motion.section
@@ -956,19 +929,23 @@ function DailyCheckIn({
       animate="animate"
       exit="exit"
     >
-      <h2>How&apos;s your {metric.toLowerCase()} this morning?</h2>
-      <div className="energy-options">
-        {options.map((option) => (
-          <button
-            key={option}
-            type="button"
-            className={checkIn === option ? "selected option" : "option"}
-            onClick={() => onCheckIn(option)}
+      <h2>{checkIn ? `${checkIn} today.` : "How are you today?"}</h2>
+      <AnimatePresence initial={false}>
+        {!checkIn && (
+          <motion.div
+            className="energy-options"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
           >
-            {option}
-          </button>
-        ))}
-      </div>
+            {options.map((option) => (
+              <button key={option} type="button" className="option" onClick={() => onCheckIn(option)}>
+                {option}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.section>
   );
 }
@@ -979,14 +956,14 @@ function JourneyScreen({
   activeExperiment,
   personalRecoveryModel,
   checkIn,
-  todayContext,
+  nextBestAction,
 }: {
   analysis: ProblemAnalysis;
   decision: ExperimentDecision;
   activeExperiment: ActiveExperiment;
   personalRecoveryModel: PersonalRecoveryModel;
   checkIn: string;
-  todayContext: TodayContext;
+  nextBestAction: NextBestAction | null;
 }) {
   const { experiment } = decision;
   const journeyTitle =
@@ -1033,7 +1010,7 @@ function JourneyScreen({
         analysis={analysis}
         checkIn={checkIn}
         personalRecoveryModel={personalRecoveryModel}
-        todayContext={todayContext}
+        nextBestAction={nextBestAction}
       />
     </motion.div>
   );
@@ -1043,15 +1020,15 @@ function PersonalRecoveryMap({
   analysis,
   checkIn,
   personalRecoveryModel,
-  todayContext,
+  nextBestAction,
 }: {
   analysis: ProblemAnalysis;
   checkIn: string;
   personalRecoveryModel: PersonalRecoveryModel;
-  todayContext: TodayContext;
+  nextBestAction: NextBestAction | null;
 }) {
   const contextSignal =
-    todayContext.kind === "nightShift"
+    nextBestAction?.mode === "nightShift"
       ? {
           id: "night-shift-context",
           factor: "Night shift",
@@ -1062,7 +1039,7 @@ function PersonalRecoveryMap({
           evidence: "Recharge is adapting before the shift starts.",
           icon: "clock" as const,
         }
-      : todayContext.kind === "brokenNight"
+      : nextBestAction?.mode === "recoveryDay"
         ? {
             id: "broken-night-context",
             factor: "Broken nights",
@@ -1073,7 +1050,18 @@ function PersonalRecoveryMap({
             evidence: "The day changed after an uncontrollable night.",
             icon: "moon" as const,
           }
-        : null;
+        : nextBestAction?.mode === "decompression"
+          ? {
+              id: "mental-load-context",
+              factor: "Work mental load",
+              label: "Needs a transition",
+              direction: "unclear" as const,
+              confidence: "early" as const,
+              observations: 1,
+              evidence: "A work-heavy evening temporarily changed today's priority.",
+              icon: "moon" as const,
+            }
+          : null;
   const quietFactors = analysis.factors
     .filter((factor) => factor.label !== analysis.primaryFocus)
     .slice(0, 1)
@@ -1161,8 +1149,8 @@ function UpdateScreen({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -22, transition: { duration: 0.12 } }}
       >
-        <h1>Tell Recharge.</h1>
-        <p className="lead">We&apos;ll adjust today around what&apos;s happening.</p>
+        <h1>What changed?</h1>
+        <p className="lead">Add context once. Recharge will adjust today&apos;s one focus.</p>
       </motion.div>
       <motion.form className="update-composer" layout layoutId="context-adaptation" onSubmit={onSubmitUpdate}>
         <textarea
@@ -1172,7 +1160,7 @@ function UpdateScreen({
           aria-label="Tell Recharge what changed"
         />
         <button className="primary-action" type="submit" disabled={!updateText.trim()}>
-          <span>Adjust today</span>
+          <span>Add context</span>
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </motion.form>
