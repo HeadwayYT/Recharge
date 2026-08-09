@@ -31,15 +31,22 @@ import {
 } from "../lib/recharge";
 import {
   composerVariants,
+  contextExtractionVariants,
+  experimentFormationVariants,
+  extractedComposerVariants,
+  extractedSignalVariants,
+  focusFormationVariants,
   layoutTransition,
   moduleVariants,
   navVariants,
+  spatialBehaviors,
+  spatialScreenVariants,
   screenVariants,
   signalGroupVariants,
   signalVariants,
 } from "./recharge-choreography";
 
-type FlowStep = "landing" | "assembling" | "recommendation" | "today";
+type FlowStep = "landing" | "recommendation" | "today";
 type AppTab = "today" | "journey" | "update";
 type TodayContextStatus = "none" | "adapting" | "adapted";
 
@@ -166,8 +173,7 @@ export default function Home() {
     setCheckIn("");
     setTodayContext(emptyTodayContext);
     setActiveTab("today");
-    setStep("assembling");
-    window.setTimeout(() => setStep("recommendation"), 860);
+    setStep("recommendation");
   }
 
   function answerMissingInformation(value: string) {
@@ -238,47 +244,46 @@ export default function Home() {
         </header>
 
         <LayoutGroup id="recharge-flow">
-          <AnimatePresence initial={false} mode="wait">
-            {step === "landing" && (
-              <LandingScreen
-                key="landing"
-                problemText={problemText}
-                onChange={setProblemText}
-                onSubmit={submitProblem}
-              />
-            )}
-            {step === "assembling" && analysis && (
-              <AssemblingScreen key="assembling" analysis={analysis} problemText={problemText} />
-            )}
-            {step === "recommendation" && analysis && previewDecision && (
-              <RecommendationCanvas
-                key="recommendation"
-                analysis={analysis}
-                problemText={problemText}
-                previewDecision={previewDecision}
-                missingInformation={pendingMissingInformation}
-                onAnswer={answerMissingInformation}
-                onStart={startRecommendedExperiment}
-              />
-            )}
-            {step === "today" && analysis && decision && activeExperiment && (
-              <TodayShell
-                key="today"
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                analysis={analysis}
-                decision={decision}
-                activeExperiment={activeExperiment}
-                checkIn={checkIn}
-                todayContext={todayContext}
-                onCheckIn={recordMorningCheckIn}
-                onDone={markDone}
-                updateText={updateText}
-                onUpdateText={setUpdateText}
-                onSubmitUpdate={submitUpdate}
-              />
-            )}
-          </AnimatePresence>
+          <div className="flow-stage">
+            <AnimatePresence initial={false} mode="sync">
+              {step === "landing" && (
+                <LandingScreen
+                  key="landing"
+                  problemText={problemText}
+                  onChange={setProblemText}
+                  onSubmit={submitProblem}
+                />
+              )}
+              {step === "recommendation" && analysis && previewDecision && (
+                <RecommendationCanvas
+                  key="recommendation"
+                  analysis={analysis}
+                  problemText={problemText}
+                  previewDecision={previewDecision}
+                  missingInformation={pendingMissingInformation}
+                  onAnswer={answerMissingInformation}
+                  onStart={startRecommendedExperiment}
+                />
+              )}
+              {step === "today" && analysis && decision && activeExperiment && (
+                <TodayShell
+                  key="today"
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  analysis={analysis}
+                  decision={decision}
+                  activeExperiment={activeExperiment}
+                  checkIn={checkIn}
+                  todayContext={todayContext}
+                  onCheckIn={recordMorningCheckIn}
+                  onDone={markDone}
+                  updateText={updateText}
+                  onUpdateText={setUpdateText}
+                  onSubmitUpdate={submitUpdate}
+                />
+              )}
+            </AnimatePresence>
+          </div>
         </LayoutGroup>
       </section>
     </main>
@@ -339,58 +344,6 @@ function LandingScreen({
   );
 }
 
-function AssemblingScreen({
-  analysis,
-  problemText,
-}: {
-  analysis: ProblemAnalysis;
-  problemText: string;
-}) {
-  const signals = getVisibleSignals(problemText, analysis);
-
-  return (
-    <motion.section
-      className="screen analysis-screen canvas-transition"
-      aria-live="polite"
-      layout
-      transition={layoutTransition}
-      variants={screenVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-    >
-      <motion.div
-        className="compressed-composer sentence-fragment"
-        layout
-        layoutId="recharge-composer"
-        transition={layoutTransition}
-        variants={composerVariants}
-      >
-        <p>{problemText}</p>
-      </motion.div>
-
-      <motion.div
-        className="signal-lift"
-        aria-label="Relevant signals"
-        variants={signalGroupVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-      >
-        {signals.map((signal) => (
-          <motion.span key={signal} layout variants={signalVariants}>
-            {signal}
-          </motion.span>
-        ))}
-      </motion.div>
-
-      <motion.h1 layout variants={moduleVariants} custom={0.18}>
-        Finding the first useful shape.
-      </motion.h1>
-    </motion.section>
-  );
-}
-
 function RecommendationCanvas({
   analysis,
   problemText,
@@ -413,8 +366,8 @@ function RecommendationCanvas({
     <motion.section
       className="screen personal-canvas adaptive-canvas"
       layout
-      transition={layoutTransition}
-      variants={screenVariants}
+      transition={spatialBehaviors.reposition}
+      variants={spatialScreenVariants}
       initial="initial"
       animate="animate"
       exit="exit"
@@ -423,13 +376,13 @@ function RecommendationCanvas({
         className="compressed-composer canvas-composer sentence-fragment"
         layout
         layoutId="recharge-composer"
-        transition={layoutTransition}
-        variants={composerVariants}
+        transition={spatialBehaviors.collapse}
+        variants={extractedComposerVariants}
       >
         <p>{problemText}</p>
       </motion.div>
 
-      <motion.div className="focus-statement assembly-module" layout variants={moduleVariants} custom={0.08}>
+      <motion.div className="focus-statement assembly-module" layout variants={focusFormationVariants}>
         <h1>Let&apos;s start with your {analysis.primaryFocus.toLowerCase()}.</h1>
         <p>{analysis.summary}</p>
       </motion.div>
@@ -437,13 +390,18 @@ function RecommendationCanvas({
       <motion.div
         className="supporting-signals satellite-signals"
         aria-label="Secondary signals"
-        variants={signalGroupVariants}
         initial="initial"
         animate="animate"
         exit="exit"
       >
-        {signals.slice(0, 3).map((signal) => (
-          <motion.span className="assembly-module" key={signal} layout variants={signalVariants}>
+        {signals.slice(0, 3).map((signal, index) => (
+          <motion.span
+            className="assembly-module"
+            key={signal}
+            layout
+            variants={extractedSignalVariants}
+            custom={0.26 + index * 0.08}
+          >
             {signal}
           </motion.span>
         ))}
@@ -455,6 +413,7 @@ function RecommendationCanvas({
         activeExperiment={null}
         primaryFocus={analysis.primaryFocus}
         actionCopy="Start experiment"
+        formation="seed"
         onPrimaryAction={onStart}
       />
 
@@ -502,6 +461,7 @@ function ExperimentModule({
   activeExperiment,
   primaryFocus,
   actionCopy,
+  formation = "steady",
   onPrimaryAction,
 }: {
   mode: "recommended" | "active" | "completedToday" | "secondary";
@@ -509,6 +469,7 @@ function ExperimentModule({
   activeExperiment: ActiveExperiment | null;
   primaryFocus: string;
   actionCopy?: string;
+  formation?: "seed" | "steady";
   onPrimaryAction?: () => void;
 }) {
   const completedToday = activeExperiment?.adherence[(activeExperiment.currentDay ?? 1) - 1] ?? false;
@@ -528,8 +489,9 @@ function ExperimentModule({
     <motion.article
       className={`experiment-living-module ${mode}`}
       layout
-      layoutId="primary-experiment"
-      variants={moduleVariants}
+      layoutId={`experiment:${experiment.id}`}
+      transition={mode === "secondary" ? spatialBehaviors.demote : spatialBehaviors.promote}
+      variants={formation === "seed" ? experimentFormationVariants : moduleVariants}
       custom={0.28}
     >
       <div className="experiment-module-top">
@@ -584,44 +546,49 @@ function TodayShell({
     <motion.section
       className="screen app-view living-app-view"
       layout
-      transition={layoutTransition}
-      variants={screenVariants}
+      transition={spatialBehaviors.reposition}
+      variants={spatialScreenVariants}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      <AnimatePresence initial={false} mode="wait">
-        {activeTab === "today" && (
-          <TodayScreen
-            key="today-panel"
-            analysis={analysis}
-            decision={decision}
-            activeExperiment={activeExperiment}
-            checkIn={checkIn}
-            todayContext={todayContext}
-            onCheckIn={onCheckIn}
-            onDone={onDone}
-          />
-        )}
-        {activeTab === "journey" && (
-          <JourneyScreen
-            key="journey-panel"
-            analysis={analysis}
-            decision={decision}
-            activeExperiment={activeExperiment}
-            checkIn={checkIn}
-            todayContext={todayContext}
-          />
-        )}
-        {activeTab === "update" && (
-          <UpdateScreen
-            key="update-panel"
-            updateText={updateText}
-            onUpdateText={onUpdateText}
-            onSubmitUpdate={onSubmitUpdate}
-          />
-        )}
-      </AnimatePresence>
+      <div className="tab-stage">
+        <AnimatePresence initial={false} mode="sync">
+          {activeTab === "today" && (
+            <TodayScreen
+              key="today-panel"
+              analysis={analysis}
+              decision={decision}
+              activeExperiment={activeExperiment}
+              checkIn={checkIn}
+              todayContext={todayContext}
+              onCheckIn={onCheckIn}
+              onDone={onDone}
+            />
+          )}
+          {activeTab === "journey" && (
+            <JourneyScreen
+              key="journey-panel"
+              analysis={analysis}
+              decision={decision}
+              activeExperiment={activeExperiment}
+              checkIn={checkIn}
+              todayContext={todayContext}
+            />
+          )}
+          {activeTab === "update" && (
+            <UpdateScreen
+              key="update-panel"
+              analysis={analysis}
+              decision={decision}
+              activeExperiment={activeExperiment}
+              updateText={updateText}
+              onUpdateText={onUpdateText}
+              onSubmitUpdate={onSubmitUpdate}
+            />
+          )}
+        </AnimatePresence>
+      </div>
 
       <motion.nav
         className="bottom-nav"
@@ -682,7 +649,7 @@ function TodayScreen({
     >
       <motion.div className="today-greeting" layout variants={moduleVariants} custom={0}>
         <span className="eyebrow">{hasAdaptedContext ? todayContext.label : "Today"}</span>
-        <h1>{hasAdaptedContext ? "Today changed shape." : "Good morning."}</h1>
+        <h1>{hasAdaptedContext ? "Lighter today." : "Good morning."}</h1>
       </motion.div>
 
       <AnimatePresence mode="popLayout">
@@ -691,18 +658,23 @@ function TodayScreen({
             key="adapted-context"
             className={`context-living-module ${todayContext.status}`}
             layout
-            layoutId="today-context"
-            variants={moduleVariants}
+            layoutId="update-composer"
+            variants={contextExtractionVariants}
             custom={0.08}
             initial="initial"
             animate="animate"
             exit="exit"
           >
             <span>{todayContext.text}</span>
-            <h2>{todayContext.status === "adapting" ? todayContext.label : todayContext.title}</h2>
-            <p>{todayContext.status === "adapting" ? "Rebuilding today around what happened." : todayContext.message}</p>
-            <strong>{todayContext.status === "adapted" ? todayContext.action : "Morning Reset is shifting into the background."}</strong>
+            <h2>{todayContext.label}</h2>
+            <p>{todayContext.status === "adapting" ? "Today is reprioritizing around that." : todayContext.message}</p>
           </motion.article>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {hasAdaptedContext && (
+          <AdaptedActionModule key="adapted-action" todayContext={todayContext} />
         )}
       </AnimatePresence>
 
@@ -712,7 +684,7 @@ function TodayScreen({
         activeExperiment={activeExperiment}
         primaryFocus={analysis.primaryFocus}
         actionCopy={completedToday ? "Done for today" : "Done for today"}
-        onPrimaryAction={onDone}
+        onPrimaryAction={hasAdaptedContext ? undefined : onDone}
       />
 
       <AnimatePresence>
@@ -740,6 +712,24 @@ function TodayScreen({
         </AnimatePresence>
       </motion.div>
     </motion.div>
+  );
+}
+
+function AdaptedActionModule({ todayContext }: { todayContext: TodayContext }) {
+  return (
+    <motion.article
+      className={`adapted-action-module ${todayContext.status}`}
+      layout
+      layoutId="adapted-action"
+      variants={experimentFormationVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <span>{todayContext.status === "adapting" ? "Making room" : "Today"}</span>
+      <h2>{todayContext.status === "adapting" ? "Lighter Day" : todayContext.title}</h2>
+      <p>{todayContext.status === "adapting" ? "Keeping the longer experiment, lowering today's demand." : todayContext.action}</p>
+    </motion.article>
   );
 }
 
@@ -817,7 +807,14 @@ function JourneyScreen({
         <h1>You&apos;re learning what gives you energy.</h1>
       </motion.div>
 
-      <motion.article className="journey-current" layout layoutId="primary-experiment" variants={moduleVariants} custom={0.08}>
+      <motion.article
+        className="journey-current"
+        layout
+        layoutId={`experiment:${experiment.id}`}
+        transition={spatialBehaviors.surfaceInsight}
+        variants={moduleVariants}
+        custom={0.08}
+      >
         <div className="experiment-icon">{iconMap[experiment.icon]}</div>
         <div>
           <span>Right now</span>
@@ -857,14 +854,22 @@ function JourneyScreen({
 }
 
 function UpdateScreen({
+  analysis,
+  decision,
+  activeExperiment,
   updateText,
   onUpdateText,
   onSubmitUpdate,
 }: {
+  analysis: ProblemAnalysis;
+  decision: ExperimentDecision;
+  activeExperiment: ActiveExperiment;
   updateText: string;
   onUpdateText: (value: string) => void;
   onSubmitUpdate: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const { experiment } = decision;
+
   return (
     <motion.div
       className="tab-panel update-canvas"
@@ -874,9 +879,25 @@ function UpdateScreen({
       animate="animate"
       exit="exit"
     >
-      <span className="eyebrow">Something changed?</span>
-      <h1>Tell Recharge.</h1>
-      <p className="lead">We&apos;ll adjust today around what&apos;s happening.</p>
+      <motion.span
+        className="eyebrow"
+        layout
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -18, transition: { duration: 0.1 } }}
+      >
+        Something changed?
+      </motion.span>
+      <motion.div
+        className="update-copy"
+        layout
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -22, transition: { duration: 0.12 } }}
+      >
+        <h1>Tell Recharge.</h1>
+        <p className="lead">We&apos;ll adjust today around what&apos;s happening.</p>
+      </motion.div>
       <motion.form className="update-composer" layout layoutId="update-composer" onSubmit={onSubmitUpdate}>
         <textarea
           value={updateText}
@@ -889,6 +910,13 @@ function UpdateScreen({
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </motion.form>
+
+      <ExperimentModule
+        mode="secondary"
+        experiment={experiment}
+        activeExperiment={activeExperiment}
+        primaryFocus={analysis.primaryFocus}
+      />
     </motion.div>
   );
 }
